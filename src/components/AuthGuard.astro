@@ -1,0 +1,44 @@
+---
+// src/components/AuthGuard.astro
+// Componente per proteggere le rotte amministrative
+
+interface Props {
+  redirectTo?: string;
+}
+
+const { redirectTo = "/admin/login" } = Astro.props;
+---
+
+<div>
+  <slot />
+</div>
+
+<script define:vars={{ redirectTo }}>
+  import { auth } from "../lib/supabase";
+
+  /**
+   * Verifica se l'utente è autenticato
+   * Se non lo è, reindirizza alla pagina di login
+   */
+  const checkAuth = async () => {
+    try {
+      const isAuthenticated = await auth.isAuthenticated();
+
+      if (!isAuthenticated) {
+        // Salva l'URL corrente per reindirizzare dopo il login
+        sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
+
+        // Reindirizza alla pagina di login
+        window.location.href = redirectTo;
+      }
+    } catch (error) {
+      console.error("Errore durante la verifica dell'autenticazione:", error);
+
+      // In caso di errore, reindirizza alla pagina di login per sicurezza
+      window.location.href = redirectTo;
+    }
+  };
+
+  // Verifica l'autenticazione all'avvio
+  document.addEventListener("DOMContentLoaded", checkAuth);
+</script>

@@ -1,0 +1,253 @@
+// Cloudinary Image Upload Component // src/components/CloudinaryUploader.astro
+
+interface Props { uploadPreset: string; cloudName: string; folder?: string; maxFileSize?:
+number; allowedFormats?: string[]; } const { uploadPreset, cloudName, folder = "blog-images",
+maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "webp",
+"svg"] } = Astro.props;
+
+<div class="cloudinary-uploader">
+  <div class="upload-container">
+    <label for="file-upload" class="upload-button">
+      Seleziona un'immagine
+    </label>
+    <input type="file" id="file-upload" accept="image/*" class="file-input" />
+    <p class="upload-info">
+      Formati supportati: {allowedFormats.join(", ")}. Dimensione massima: {
+        Math.floor(maxFileSize / 1048576)
+      }MB
+    </p>
+  </div>
+
+  <div class="upload-preview" id="upload-preview">
+    <div class="preview-placeholder">Anteprima immagine</div>
+  </div>
+
+  <div class="upload-progress" id="upload-progress" style="display: none;">
+    <div class="progress-bar">
+      <div class="progress-bar-fill" id="progress-bar-fill"></div>
+    </div>
+    <p class="progress-text" id="progress-text">0%</p>
+  </div>
+
+  <!-- Input nascosto per salvare l'URL dell'immagine caricata -->
+  <input type="hidden" id="uploaded-image-url" />
+</div>
+
+<script
+  define:vars={{ uploadPreset, cloudName, folder, maxFileSize, allowedFormats }}
+>
+  document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.getElementById("file-upload");
+    const previewContainer = document.getElementById("upload-preview");
+    const progressContainer = document.getElementById("upload-progress");
+    const progressBarFill = document.getElementById("progress-bar-fill");
+    const progressText = document.getElementById("progress-text");
+    const uploadedImageUrlInput = document.getElementById("uploaded-image-url");
+
+    // Event listener per la selezione del file
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+
+      if (!file) return;
+
+      // Controlla il formato del file
+      const fileExtension = file.name.split(".").pop().toLowerCase();
+      if (!allowedFormats.includes(fileExtension)) {
+        alert(
+          `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`
+        );
+        fileInput.value = ""; // Reset input
+        return;
+      }
+
+      // Controlla la dimensione del file
+      if (file.size > maxFileSize) {
+        alert(
+          `File troppo grande. Dimensione massima: ${Math.floor(maxFileSize / 1048576)}MB`
+        );
+        fileInput.value = ""; // Reset input
+        return;
+      }
+
+      // Mostra anteprima
+      showPreview(file);
+
+      // Carica l'immagine su Cloudinary
+      uploadToCloudinary(file);
+    });
+
+    // Funzione per mostrare l'anteprima
+    function showPreview(file) {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        previewContainer.innerHTML = `
+          <img src="${e.target.result}" alt="Preview" class="preview-image" />
+        `;
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    // Funzione per caricare l'immagine su Cloudinary
+    function uploadToCloudinary(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+      formData.append("folder", folder);
+
+      // Mostra la barra di progresso
+      progressContainer.style.display = "block";
+      progressBarFill.style.width = "0%";
+      progressText.textContent = "0%";
+
+      // Crea una richiesta XHR per monitorare il progresso
+      const xhr = new XMLHttpRequest();
+      xhr.open(
+        "POST",
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        true
+      );
+
+      // Monitora il progresso
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          progressBarFill.style.width = `${percentComplete}%`;
+          progressText.textContent = `${percentComplete}%`;
+        }
+      };
+
+      // Gestisci la risposta
+      xhr.onload = function () {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+
+          // Salva l'URL dell'immagine
+          uploadedImageUrlInput.value = response.secure_url;
+
+          // Emetti un evento personalizzato
+          const uploadEvent = new CustomEvent("cloudinaryUploadComplete", {
+            detail: {
+              url: response.secure_url,
+              publicId: response.public_id,
+              format: response.format,
+              width: response.width,
+              height: response.height,
+            },
+          });
+
+          document.dispatchEvent(uploadEvent);
+
+          // Nascondi la barra di progresso dopo un ritardo
+          setTimeout(() => {
+            progressContainer.style.display = "none";
+          }, 1000);
+        } else {
+          alert(
+            "Si è verificato un errore durante il caricamento dell'immagine"
+          );
+          progressContainer.style.display = "none";
+        }
+      };
+
+      // Gestisci gli errori
+      xhr.onerror = function () {
+        alert("Si è verificato un errore durante il caricamento dell'immagine");
+        progressContainer.style.display = "none";
+      };
+
+      // Invia la richiesta
+      xhr.send(formData);
+    }
+  });
+</script>
+
+<style>
+  .cloudinary-uploader {
+    margin: 20px 0;
+    max-width: 600px;
+  }
+
+  .upload-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .upload-button {
+    background-color: #2196f3;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 15px;
+  }
+
+  .file-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+
+  .upload-info {
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+  }
+
+  .upload-preview {
+    width: 100%;
+    height: 200px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .preview-placeholder {
+    color: #999;
+    font-size: 0.9rem;
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .upload-progress {
+    margin-bottom: 20px;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background-color: #4caf50;
+    width: 0%;
+    transition: width 0.2s ease;
+  }
+
+  .progress-text {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+    margin: 0;
+  }
+</style>

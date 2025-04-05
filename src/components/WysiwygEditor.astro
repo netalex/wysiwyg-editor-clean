@@ -1,31 +1,147 @@
 ---
+// src/components/WysiwygEditor.astro
+
+interface Props {
+  id?: string;
+  initialContent?: string;
+  height?: number;
+  cloudinaryUploadPreset?: string;
+  cloudinaryCloudName?: string;
+}
+
+const {
+  id = "wysiwyg-editor",
+  initialContent = "",
+  height = 500,
+  cloudinaryUploadPreset = "",
+  cloudinaryCloudName = "",
+} = Astro.props;
+
+// Flag per l'integrazione con Cloudinary
+const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
 ---
 
 <div class="wysiwyg-editor-container">
-  <textarea id="wysiwyg-editor" placeholder="Scrivi qui il tuo contenuto..."></textarea>
+  <textarea id={id} placeholder="Scrivi qui il tuo contenuto..."
+    >{initialContent}</textarea
+  >
+
+  <!-- Dialog per l'upload delle immagini con Cloudinary -->
+  {
+    hasCloudinaryConfig && (
+      <div id="cloudinary-upload-dialog" class="upload-dialog hidden">
+        <div class="upload-dialog-content">
+          <div class="upload-dialog-header">
+            <h3>Carica un'immagine</h3>
+            <button id="close-dialog-btn" class="close-btn">
+              &times;
+            </button>
+          </div>
+          <div class="upload-dialog-body">
+            <div class="upload-container">
+              <label for="file-upload" class="upload-button">
+                Seleziona un'immagine
+              </label>
+              <input
+                type="file"
+                id="file-upload"
+                accept="image/*"
+                class="file-input"
+              />
+              <p class="upload-info">
+                Formati supportati: jpg, jpeg, png, gif, webp, svg. Dimensione
+                massima: 10MB
+              </p>
+            </div>
+
+            <div class="upload-preview" id="upload-preview">
+              <div class="preview-placeholder">Anteprima immagine</div>
+            </div>
+
+            <div
+              class="upload-progress"
+              id="upload-progress"
+              style="display: none;"
+            >
+              <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar-fill" />
+              </div>
+              <p class="progress-text" id="progress-text">
+                0%
+              </p>
+            </div>
+          </div>
+          <div class="upload-dialog-footer">
+            <button id="cancel-upload-btn" class="cancel-btn">
+              Annulla
+            </button>
+            <button id="insert-image-btn" class="insert-btn" disabled>
+              Inserisci immagine
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
+<script
+  define:vars={{
+    id,
+    initialContent,
+    height,
+    cloudinaryUploadPreset,
+    cloudinaryCloudName,
+    hasCloudinaryConfig,
+  }}
+>
+  document.addEventListener("DOMContentLoaded", () => {
     // Carica TinyMCE dal path locale
-    const script = document.createElement('script');
-    script.src = '/assets/tinymce/tinymce.min.js';
+    const script = document.createElement("script");
+    script.src = "/assets/tinymce/tinymce.min.js";
     script.onload = initEditor;
     document.head.appendChild(script);
   });
 
+  let uploadedImageUrl = "";
+  let editor; // Riferimento all'istanza dell'editor TinyMCE
+
   function initEditor() {
     // Percorso base per tinymce
-    const tinymcePath = '/assets/tinymce';
+    const tinymcePath = "/assets/tinymce";
+
+    // Array di plugins base
+    const plugins = [
+      "link",
+      "lists",
+      "table",
+      "code",
+      "searchreplace",
+      "fullscreen",
+      "media",
+    ];
+
+    // Array di voci della toolbar base
+    const toolbar = [
+      "undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | link",
+      "table | code | searchreplace | fullscreen",
+    ];
+
+    // Se disponibile la configurazione Cloudinary, aggiungi il plugin personalizzato per le immagini
+    if (hasCloudinaryConfig) {
+      plugins.push("image");
+      toolbar[0] += " image";
+    }
 
     // Inizializza TinyMCE con il percorso base per i plugin e skin
     window.tinymce.init({
-      selector: '#wysiwyg-editor',
-      plugins: 'link image lists table code',
-      toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | indent outdent | bullist numlist | link image | table | code',
-      menubar: 'file edit view insert format tools table help',
-      content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 16px; }',
-      height: 400,
+      selector: `#${id}`,
+      plugins: plugins.join(" "),
+      toolbar: toolbar.join(" | "),
+      menubar: "file edit view insert format tools table help",
+      content_style:
+        "body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 16px; }",
+      height: height,
       promotion: false,
       branding: false,
       // Imposta il percorso base per i plugin e skin
@@ -34,24 +150,215 @@
       theme_url: `${tinymcePath}/themes/silver`,
       icons_url: `${tinymcePath}/icons/default`,
       // Impostazioni aggiuntive
-      entity_encoding: 'raw',
+      entity_encoding: "raw",
       convert_urls: false,
       relative_urls: false,
-      language: 'it',
+      language: "it",
+      // Abilita l'autosalvataggio
+      autosave_ask_before_unload: true,
+      autosave_interval: "30s",
+
+      // Sovrascrive il comportamento del plugin image se abbiamo Cloudinary configurato
+      file_picker_callback: hasCloudinaryConfig
+        ? filePickerCallback
+        : undefined,
+
       // Salvataggio automatico del contenuto in localStorage
-      setup: function(editor) {
+      setup: function (ed) {
+        editor = ed;
+
         // Aggiungi funzionalità di autosave
-        editor.on('change', function() {
-          localStorage.setItem('tinymce-content', editor.getContent());
+        editor.on("change", function () {
+          localStorage.setItem(`tinymce-content-${id}`, editor.getContent());
         });
-        
-        // Carica il contenuto salvato in precedenza
-        editor.on('init', function() {
-          const savedContent = localStorage.getItem('tinymce-content');
-          if (savedContent) {
-            editor.setContent(savedContent);
+
+        // Carica il contenuto salvato in precedenza se non è fornito initialContent
+        editor.on("init", function () {
+          if (!initialContent) {
+            const savedContent = localStorage.getItem(`tinymce-content-${id}`);
+            if (savedContent) {
+              editor.setContent(savedContent);
+            }
           }
         });
+
+        // Metodo per inserire un'immagine nell'editor
+        editor.insertImage = function (url, alt = "") {
+          editor.insertContent(`<img src="${url}" alt="${alt}" />`);
+        };
+      },
+    });
+  }
+
+  // Funzione per il selettore di file (se Cloudinary è configurato)
+  function filePickerCallback(callback, value, meta) {
+    // Accettiamo solo immagini
+    if (meta.filetype === "image") {
+      showCloudinaryUploadDialog()
+        .then((imageUrl) => {
+          if (imageUrl) {
+            callback(imageUrl, { alt: "" });
+          }
+        })
+        .catch((error) => {
+          console.error("Errore durante l'upload dell'immagine:", error);
+        });
+    }
+  }
+
+  // Funzione per mostrare il dialog di upload
+  function showCloudinaryUploadDialog() {
+    return new Promise((resolve, reject) => {
+      if (!hasCloudinaryConfig) {
+        reject(new Error("Configurazione Cloudinary mancante"));
+        return;
+      }
+
+      const dialog = document.getElementById("cloudinary-upload-dialog");
+      const closeBtn = document.getElementById("close-dialog-btn");
+      const cancelBtn = document.getElementById("cancel-upload-btn");
+      const insertBtn = document.getElementById("insert-image-btn");
+      const fileInput = document.getElementById("file-upload");
+      const previewContainer = document.getElementById("upload-preview");
+      const progressContainer = document.getElementById("upload-progress");
+      const progressBarFill = document.getElementById("progress-bar-fill");
+      const progressText = document.getElementById("progress-text");
+
+      // Resetta lo stato del dialog
+      uploadedImageUrl = "";
+      fileInput.value = "";
+      previewContainer.innerHTML =
+        '<div class="preview-placeholder">Anteprima immagine</div>';
+      progressContainer.style.display = "none";
+      insertBtn.disabled = true;
+
+      // Mostra il dialog
+      dialog.classList.remove("hidden");
+
+      // Gestione eventi dialog
+      closeBtn.onclick = () => {
+        dialog.classList.add("hidden");
+        resolve(null);
+      };
+
+      cancelBtn.onclick = () => {
+        dialog.classList.add("hidden");
+        resolve(null);
+      };
+
+      insertBtn.onclick = () => {
+        dialog.classList.add("hidden");
+        resolve(uploadedImageUrl);
+      };
+
+      // Gestione upload file
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        // Controlla il formato del file
+        const allowedFormats = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
+        const fileExtension = file.name.split(".").pop().toLowerCase();
+
+        if (!allowedFormats.includes(fileExtension)) {
+          alert(
+            `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`
+          );
+          fileInput.value = "";
+          return;
+        }
+
+        // Controlla la dimensione del file (max 10MB)
+        const maxFileSize = 10 * 1024 * 1024;
+        if (file.size > maxFileSize) {
+          alert("File troppo grande. Dimensione massima: 10MB");
+          fileInput.value = "";
+          return;
+        }
+
+        // Mostra anteprima
+        showPreview(file);
+
+        // Carica l'immagine su Cloudinary
+        uploadToCloudinary(file);
+      };
+
+      // Funzione per mostrare l'anteprima
+      function showPreview(file) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          previewContainer.innerHTML = `
+            <img src="${e.target.result}" alt="Preview" class="preview-image" />
+          `;
+        };
+
+        reader.readAsDataURL(file);
+      }
+
+      // Funzione per caricare l'immagine su Cloudinary
+      function uploadToCloudinary(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", cloudinaryUploadPreset);
+        formData.append("folder", "blog-images");
+
+        // Mostra la barra di progresso
+        progressContainer.style.display = "block";
+        progressBarFill.style.width = "0%";
+        progressText.textContent = "0%";
+
+        // Crea una richiesta XHR per monitorare il progresso
+        const xhr = new XMLHttpRequest();
+        xhr.open(
+          "POST",
+          `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+          true
+        );
+
+        // Monitora il progresso
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            progressBarFill.style.width = `${percentComplete}%`;
+            progressText.textContent = `${percentComplete}%`;
+          }
+        };
+
+        // Gestisci la risposta
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+
+            // Salva l'URL dell'immagine
+            uploadedImageUrl = response.secure_url;
+
+            // Abilita il pulsante di inserimento
+            insertBtn.disabled = false;
+
+            // Nascondi la barra di progresso dopo un ritardo
+            setTimeout(() => {
+              progressContainer.style.display = "none";
+            }, 1000);
+          } else {
+            alert(
+              "Si è verificato un errore durante il caricamento dell'immagine"
+            );
+            progressContainer.style.display = "none";
+          }
+        };
+
+        // Gestisci gli errori
+        xhr.onerror = function () {
+          alert(
+            "Si è verificato un errore durante il caricamento dell'immagine"
+          );
+          progressContainer.style.display = "none";
+        };
+
+        // Invia la richiesta
+        xhr.send(formData);
       }
     });
   }
@@ -60,6 +367,173 @@
 <style>
   .wysiwyg-editor-container {
     margin: 20px 0;
-    max-width: 800px;
+    max-width: 100%;
+  }
+
+  /* Stili per il dialog di upload */
+  .upload-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  }
+
+  .upload-dialog.hidden {
+    display: none;
+  }
+
+  .upload-dialog-content {
+    background-color: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .upload-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .upload-dialog-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+  }
+
+  .upload-dialog-body {
+    padding: 20px;
+  }
+
+  .upload-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .upload-button {
+    background-color: #2196f3;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 15px;
+  }
+
+  .file-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+
+  .upload-info {
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+  }
+
+  .upload-preview {
+    width: 100%;
+    height: 200px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .preview-placeholder {
+    color: #999;
+    font-size: 0.9rem;
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .upload-progress {
+    margin-bottom: 20px;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background-color: #4caf50;
+    width: 0%;
+    transition: width 0.2s ease;
+  }
+
+  .progress-text {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+    margin: 0;
+  }
+
+  .upload-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    gap: 10px;
+  }
+
+  .cancel-btn,
+  .insert-btn {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    border: none;
+  }
+
+  .cancel-btn {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+
+  .insert-btn {
+    background-color: #4caf50;
+    color: white;
+  }
+
+  .insert-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
   }
 </style>
