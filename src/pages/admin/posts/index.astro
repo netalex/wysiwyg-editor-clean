@@ -1,0 +1,202 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Gestione Post - WYSIWYG Editor">
+  <div class="admin-container">
+    <h1>Gestione Post</h1>
+    
+    <div class="admin-header">
+      <a href="/admin" class="back-link">← Torna all'editor</a>
+      <button id="newPostBtn" class="new-post-btn">Nuovo Post</button>
+    </div>
+    
+    <div id="postsList" class="posts-list">
+      <p>Caricamento post...</p>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const postsListContainer = document.getElementById('postsList');
+    const newPostBtn = document.getElementById('newPostBtn');
+    
+    // Reindirizza alla pagina di modifica per un nuovo post
+    newPostBtn.addEventListener('click', () => {
+      window.location.href = '/admin';
+    });
+    
+    // Carica i post dal localStorage
+    loadPosts();
+    
+    function loadPosts() {
+      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+      
+      if (posts.length === 0) {
+        postsListContainer.innerHTML = '<p class="no-posts">Nessun post disponibile. Crea il tuo primo post!</p>';
+        return;
+      }
+      
+      // Ordina i post per data (più recenti prima)
+      posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Genera HTML per la tabella dei post
+      const tableHTML = `
+        <table class="posts-table">
+          <thead>
+            <tr>
+              <th>Titolo</th>
+              <th>Slug</th>
+              <th>Data</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${posts.map(post => {
+              const date = new Date(post.date).toLocaleDateString('it-IT', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              
+              return `
+                <tr data-slug="${post.slug}">
+                  <td>${post.title}</td>
+                  <td>${post.slug}</td>
+                  <td>${date}</td>
+                  <td class="actions">
+                    <button class="edit-btn" data-slug="${post.slug}">Modifica</button>
+                    <button class="delete-btn" data-slug="${post.slug}">Elimina</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      postsListContainer.innerHTML = tableHTML;
+      
+      // Aggiungi event listeners per i pulsanti di modifica ed eliminazione
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slug = btn.getAttribute('data-slug');
+          editPost(slug);
+        });
+      });
+      
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slug = btn.getAttribute('data-slug');
+          deletePost(slug);
+        });
+      });
+    }
+    
+    function editPost(slug) {
+      // Reindirizza alla pagina di modifica con lo slug del post
+      window.location.href = `/admin/edit/${slug}`;
+    }
+    
+    function deletePost(slug) {
+      if (!confirm('Sei sicuro di voler eliminare questo post? Questa azione non può essere annullata.')) {
+        return;
+      }
+      
+      // Recupera i post dal localStorage
+      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+      
+      // Filtra per rimuovere il post con lo slug specificato
+      const updatedPosts = posts.filter(post => post.slug !== slug);
+      
+      // Salva i post aggiornati nel localStorage
+      localStorage.setItem('blog-posts', JSON.stringify(updatedPosts));
+      
+      // Ricarica la lista dei post
+      loadPosts();
+    }
+  });
+</script>
+
+<style>
+  .admin-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+  }
+  
+  .back-link {
+    color: #2196F3;
+    text-decoration: none;
+  }
+  
+  .new-post-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .posts-list {
+    margin-top: 20px;
+  }
+  
+  .no-posts {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+  }
+  
+  .posts-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .posts-table th, .posts-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .posts-table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+  }
+  
+  .posts-table tr:hover {
+    background-color: #f9f9f9;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .edit-btn, .delete-btn {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .edit-btn {
+    background-color: #2196F3;
+    color: white;
+  }
+  
+  .delete-btn {
+    background-color: #f44336;
+    color: white;
+  }
+</style>

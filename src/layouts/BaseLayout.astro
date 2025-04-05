@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Editor WYSIWYG per Astro" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <div class="logo">WYSIWYG Editor POC</div>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/admin">Admin</a></li>
+          <li><a href="/blog">Blog</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <p>&copy; 2023 WYSIWYG Editor POC</p>
+    </footer>
+  </body>
+</html>

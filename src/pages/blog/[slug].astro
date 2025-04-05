@@ -1,0 +1,108 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const { slug } = Astro.params;
+---
+
+<BaseLayout title="Dettaglio Post">
+  <div class="post-container">
+    <div id="postContent" data-slug={slug}>
+      <p>Caricamento...</p>
+    </div>
+    
+    <div class="post-navigation">
+      <a href="/blog">← Torna al blog</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<script define:vars={{ slug }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const postContentContainer = document.getElementById('postContent');
+    
+    // Recupera i post dal localStorage
+    const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+    
+    // Trova il post corrispondente allo slug
+    const post = posts.find(p => p.slug === slug);
+    
+    if (!post) {
+      postContentContainer.innerHTML = `
+        <div class="post-not-found">
+          <h1>Post non trovato</h1>
+          <p>Il post che stai cercando non esiste o è stato rimosso.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Formatta la data
+    const date = new Date(post.date).toLocaleDateString('it-IT', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    // Genera HTML per il post
+    const postHTML = `
+      <article class="blog-post-full">
+        <h1>${post.title}</h1>
+        <div class="post-date">${date}</div>
+        <div class="post-content">
+          ${post.content}
+        </div>
+      </article>
+    `;
+    
+    postContentContainer.innerHTML = postHTML;
+  });
+</script>
+
+<style>
+  .post-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .blog-post-full {
+    margin-bottom: 30px;
+  }
+  
+  .blog-post-full h1 {
+    margin-bottom: 10px;
+  }
+  
+  .post-date {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .post-content {
+    line-height: 1.6;
+  }
+  
+  .post-content img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  .post-navigation {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  
+  .post-navigation a {
+    color: #2196F3;
+    text-decoration: none;
+  }
+  
+  .post-not-found {
+    text-align: center;
+    padding: 40px 0;
+  }
+</style>

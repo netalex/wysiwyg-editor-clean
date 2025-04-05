@@ -1,14 +1,21 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import WysiwygEditor from '../../components/WysiwygEditor.astro';
+export const prerender = false;
+
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import WysiwygEditor from '../../../components/WysiwygEditor.astro';
+
+const { slug } = Astro.params;
 ---
 
-<BaseLayout title="Admin - WYSIWYG Editor">
+<BaseLayout title="Modifica Post - WYSIWYG Editor">
   <div class="admin-container">
-    <h1>Editor WYSIWYG</h1>
-    <p>Utilizza l'editor qui sotto per creare o modificare contenuti</p>
+    <h1>Modifica Post</h1>
     
-    <div class="editor-form">
+    <div class="admin-header">
+      <a href="/admin/posts" class="back-link">← Torna alla lista post</a>
+    </div>
+    
+    <div class="editor-form" data-slug={slug}>
       <div class="form-group">
         <label for="title">Titolo</label>
         <input type="text" id="title" name="title" placeholder="Inserisci un titolo..." />
@@ -22,37 +29,55 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
       <WysiwygEditor />
       
       <div class="form-actions">
-        <button id="saveBtn" type="button">Salva</button>
+        <button id="saveBtn" type="button">Aggiorna</button>
         <button id="previewBtn" type="button">Anteprima</button>
       </div>
     </div>
   </div>
 </BaseLayout>
 
-<script>
+<script define:vars={{ slug }}>
   document.addEventListener('DOMContentLoaded', () => {
     const titleInput = document.getElementById('title');
     const slugInput = document.getElementById('slug');
     const saveBtn = document.getElementById('saveBtn');
     const previewBtn = document.getElementById('previewBtn');
     
-    // Genera slug automaticamente dal titolo
-    titleInput.addEventListener('input', () => {
-      const title = titleInput.value;
-      const slug = title
-        .toLowerCase()
-        .replace(/[^\w\s]/gi, '')
-        .replace(/\s+/g, '-');
-      
-      slugInput.value = slug;
-    });
+    // Carica il post esistente
+    loadExistingPost();
     
-    // Salva il contenuto nel localStorage
+    function loadExistingPost() {
+      // Recupera i post dal localStorage
+      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
+      
+      // Trova il post con lo slug specificato
+      const post = posts.find(p => p.slug === slug);
+      
+      if (!post) {
+        alert('Post non trovato!');
+        window.location.href = '/admin/posts';
+        return;
+      }
+      
+      // Popola i campi del form
+      titleInput.value = post.title;
+      slugInput.value = post.slug;
+      
+      // Inserisci il contenuto nell'editor quando TinyMCE è pronto
+      const checkTinyMCE = setInterval(() => {
+        if (window.tinymce && window.tinymce.get('wysiwyg-editor')) {
+          window.tinymce.get('wysiwyg-editor').setContent(post.content);
+          clearInterval(checkTinyMCE);
+        }
+      }, 100);
+    }
+    
+    // Aggiorna il post esistente
     saveBtn.addEventListener('click', () => {
       const title = titleInput.value;
-      const slug = slugInput.value;
+      const newSlug = slugInput.value;
       
-      if (!title || !slug) {
+      if (!title || !newSlug) {
         alert('Per favore, compila tutti i campi obbligatori');
         return;
       }
@@ -60,31 +85,35 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
       // Recupera il contenuto dell'editor
       const content = window.tinymce.get('wysiwyg-editor').getContent();
       
-      // Salva tutto nel localStorage (temporaneo, poi useremo Git Gateway)
-      const post = {
-        title,
-        slug,
-        content,
-        date: new Date().toISOString()
-      };
-      
-      // Salva nel localStorage
+      // Recupera i post dal localStorage
       const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
       
-      // Cerca se esiste già un post con lo stesso slug
-      const existingIndex = posts.findIndex(p => p.slug === slug);
+      // Trova l'indice del post con lo slug originale
+      const postIndex = posts.findIndex(p => p.slug === slug);
       
-      if (existingIndex >= 0) {
-        // Update existing post
-        posts[existingIndex] = post;
-      } else {
-        // Add new post
-        posts.push(post);
+      if (postIndex === -1) {
+        alert('Post non trovato!');
+        return;
       }
       
+      // Aggiorna il post
+      posts[postIndex] = {
+        ...posts[postIndex],
+        title,
+        slug: newSlug,
+        content,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Salva i post aggiornati nel localStorage
       localStorage.setItem('blog-posts', JSON.stringify(posts));
       
-      alert('Post salvato con successo!');
+      alert('Post aggiornato con successo!');
+      
+      // Se lo slug è cambiato, reindirizza alla nuova URL di modifica
+      if (newSlug !== slug) {
+        window.location.href = `/admin/edit/${newSlug}`;
+      }
     });
     
     // Anteprima del contenuto
@@ -109,6 +138,15 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
+  }
+  
+  .admin-header {
+    margin: 20px 0;
+  }
+  
+  .back-link {
+    color: #2196F3;
+    text-decoration: none;
   }
   
   .editor-form {

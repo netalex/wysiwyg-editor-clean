@@ -1,47 +1,61 @@
-# Astro Starter Kit: Minimal
+# 
 
-```sh
-pnpm create astro@latest -- --template minimal
+Un editor WYSIWYG per Astro, progettato per siti statici e landing page con blog, ottimizzato per psicoterapeuti e professionisti.
+
+## 🚀 Funzionalità
+
+- Editor WYSIWYG completo utilizzando TinyMCE
+- Salvataggio dei contenuti in localStorage (prototipo)
+- Gestione post del blog
+- Anteprima in tempo reale
+- Interfaccia admin per la gestione dei contenuti
+- Ottimizzato per WSL2/Windows con file watching migliorato
+
+## 🧞 Comandi disponibili
+
+```bash
+# Avvia server di sviluppo (ottimizzato per Windows/WSL)
+pnpm dev:windows
+
+# Avvia server di sviluppo normale
+pnpm dev
+
+# Build del progetto
+pnpm build
+
+# Anteprima della build
+pnpm preview
+
+# Configura TinyMCE self-hosted
+pnpm setup:tinymce
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/minimal)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/minimal)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/minimal/devcontainer.json)
+## 📂 Struttura del progetto
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
+```
 /
-├── public/
+├── public/             # File statici
+│   └── assets/         # Asset (TinyMCE, immagini, ecc.)
 ├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+│   ├── components/     # Componenti Astro
+│   │   └── WysiwygEditor.astro  # Componente editor WYSIWYG
+│   ├── layouts/        # Layout di pagina
+│   ├── pages/          # Pagine del sito
+│   │   ├── admin/      # Area amministrativa
+│   │   ├── blog/       # Blog
+│   │   └── index.astro # Home page
+│   └── styles/         # Fogli di stile
+└── scripts/            # Script di utilità
+    └── setup-tinymce.sh # Script per configurare TinyMCE
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## 🔜 Prossimi passi
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- Integrazione con Supabase Auth per autenticazione
+- Integrazione con Cloudinary per la gestione delle immagini
+- Integrazione con Git Gateway per salvare i contenuti nel repository
+- Integrazione con DecapCMS
 
-Any static assets, like images, can be placed in the `public/` directory.
+## 📝 Licenza
 
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+MIT

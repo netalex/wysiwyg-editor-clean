@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Anteprima Post">
+  <div class="preview-container">
+    <h1 id="previewTitle">Anteprima</h1>
+    <div class="preview-content" id="previewContent"></div>
+  </div>
+</BaseLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Recupera i dati di anteprima dal localStorage
+    const previewData = JSON.parse(localStorage.getItem('preview-post') || '{}');
+    
+    // Popola la pagina con i dati
+    if (previewData.title) {
+      document.getElementById('previewTitle').textContent = previewData.title;
+    }
+    
+    if (previewData.content) {
+      document.getElementById('previewContent').innerHTML = previewData.content;
+    } else {
+      document.getElementById('previewContent').innerHTML = '<p>Nessun contenuto disponibile per l\'anteprima.</p>';
+    }
+  });
+</script>
+
+<style>
+  .preview-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .preview-content {
+    margin-top: 20px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+</style>

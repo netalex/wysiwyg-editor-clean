@@ -1,87 +1,187 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<Layout title="Blog Psicologo - Home">
-  <section class="hero">
-    <h1>Blog Psicologo</h1>
-    <p>Risorse e articoli su psicologia, benessere e terapia</p>
-  </section>
-  
-  <section class="welcome">
-    <h2>Benvenuto nel nostro blog</h2>
-    <p>Questo è un sito per professionisti della salute mentale che offre risorse, articoli e approfondimenti su temi legati alla psicologia, al benessere e alla terapia.</p>
-    <div class="cta-buttons">
-      <a href="/blog" class="button">Leggi gli articoli</a>
-      <a href="/admin" class="button secondary">Area amministrazione</a>
-    </div>
-  </section>
-</Layout>
+<BaseLayout title="WYSIWYG Editor POC">
+  <div class="home-container">
+    <section class="hero">
+      <h1>WYSIWYG Editor per Astro</h1>
+      <p>Un editor visuale per la creazione di contenuti sul tuo sito Astro</p>
+      <div class="cta-buttons">
+        <a href="/admin" class="cta-button primary">Prova l'editor</a>
+        <a href="/blog" class="cta-button secondary">Vedi il blog</a>
+      </div>
+    </section>
+    
+    <section class="features">
+      <h2>Caratteristiche</h2>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Editor Visuale</h3>
+          <p>Crea contenuti ricchi senza bisogno di conoscere HTML o Markdown</p>
+        </div>
+        
+        <div class="feature-card">
+          <h3>Completamente Client-Side</h3>
+          <p>Funziona senza backend o database, perfetto per siti statici</p>
+        </div>
+        
+        <div class="feature-card">
+          <h3>Integrazione con Git</h3>
+          <p>Salva i contenuti direttamente nel tuo repository Git</p>
+        </div>
+        
+        <div class="feature-card">
+          <h3>Gestione Media</h3>
+          <p>Upload e gestione immagini con ottimizzazione automatica</p>
+        </div>
+      </div>
+    </section>
+    
+    <section class="how-it-works">
+      <h2>Come Funziona</h2>
+      
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Crea Contenuti</h3>
+            <p>Usa l'editor visuale per creare articoli, pagine e post del blog</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Salva nel Repository</h3>
+            <p>I contenuti vengono salvati automaticamente nel tuo repository Git</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Pubblica Automaticamente</h3>
+            <p>Il tuo sito viene ricostruito e pubblicato automaticamente</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
 
 <style>
+  .home-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
   .hero {
     text-align: center;
-    padding: 4rem 0;
-    background-color: var(--color-bg-alt);
-    border-radius: 8px;
-    margin-bottom: 2rem;
+    padding: 60px 0;
   }
   
   .hero h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: var(--color-primary);
+    font-size: 2.5rem;
+    margin-bottom: 20px;
   }
   
   .hero p {
-    font-size: 1.5rem;
-    color: var(--color-text-light);
-  }
-  
-  .welcome {
-    padding: 2rem;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  .welcome h2 {
-    margin-bottom: 1rem;
-    color: var(--color-secondary);
-  }
-  
-  .welcome p {
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 30px;
   }
   
   .cta-buttons {
     display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
   }
   
-  .button {
+  .cta-button {
     display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background-color: var(--color-primary);
-    color: white;
+    padding: 12px 24px;
     border-radius: 4px;
     text-decoration: none;
     font-weight: bold;
-    transition: background-color 0.2s;
   }
   
-  .button:hover {
-    background-color: #3d8b40;
-    text-decoration: none;
+  .cta-button.primary {
+    background-color: #4CAF50;
+    color: white;
   }
   
-  .button.secondary {
-    background-color: var(--color-secondary);
+  .cta-button.secondary {
+    background-color: #2196F3;
+    color: white;
   }
   
-  .button.secondary:hover {
-    background-color: #222;
+  .features {
+    padding: 60px 0;
+  }
+  
+  .features h2 {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+  }
+  
+  .feature-card {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .feature-card h3 {
+    margin-bottom: 10px;
+    color: #2196F3;
+  }
+  
+  .how-it-works {
+    padding: 60px 0;
+  }
+  
+  .how-it-works h2 {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  
+  .step-number {
+    background-color: #4CAF50;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+  
+  .step-content h3 {
+    margin-bottom: 5px;
   }
 </style>

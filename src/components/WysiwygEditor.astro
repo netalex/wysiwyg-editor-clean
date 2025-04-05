@@ -1,0 +1,65 @@
+---
+---
+
+<div class="wysiwyg-editor-container">
+  <textarea id="wysiwyg-editor" placeholder="Scrivi qui il tuo contenuto..."></textarea>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Carica TinyMCE dal path locale
+    const script = document.createElement('script');
+    script.src = '/assets/tinymce/tinymce.min.js';
+    script.onload = initEditor;
+    document.head.appendChild(script);
+  });
+
+  function initEditor() {
+    // Percorso base per tinymce
+    const tinymcePath = '/assets/tinymce';
+
+    // Inizializza TinyMCE con il percorso base per i plugin e skin
+    window.tinymce.init({
+      selector: '#wysiwyg-editor',
+      plugins: 'link image lists table code',
+      toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | indent outdent | bullist numlist | link image | table | code',
+      menubar: 'file edit view insert format tools table help',
+      content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 16px; }',
+      height: 400,
+      promotion: false,
+      branding: false,
+      // Imposta il percorso base per i plugin e skin
+      base_url: tinymcePath,
+      skin_url: `${tinymcePath}/skins/ui/oxide`,
+      theme_url: `${tinymcePath}/themes/silver`,
+      icons_url: `${tinymcePath}/icons/default`,
+      // Impostazioni aggiuntive
+      entity_encoding: 'raw',
+      convert_urls: false,
+      relative_urls: false,
+      language: 'it',
+      // Salvataggio automatico del contenuto in localStorage
+      setup: function(editor) {
+        // Aggiungi funzionalità di autosave
+        editor.on('change', function() {
+          localStorage.setItem('tinymce-content', editor.getContent());
+        });
+        
+        // Carica il contenuto salvato in precedenza
+        editor.on('init', function() {
+          const savedContent = localStorage.getItem('tinymce-content');
+          if (savedContent) {
+            editor.setContent(savedContent);
+          }
+        });
+      }
+    });
+  }
+</script>
+
+<style>
+  .wysiwyg-editor-container {
+    margin: 20px 0;
+    max-width: 800px;
+  }
+</style>
