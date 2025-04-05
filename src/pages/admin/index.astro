@@ -1,0 +1,52 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import WysiwygEditor from '../../components/Editor/WysiwygEditor.astro';
+---
+
+<Layout title="Admin Dashboard">
+  <div class="admin-header">
+    <h1>Dashboard Amministrazione</h1>
+    <p>Gestisci i contenuti del tuo blog da questa dashboard.</p>
+  </div>
+
+  <div class="admin-content">
+    <div class="editor-section">
+      <h2>Editor WYSIWYG</h2>
+      <p>Crea o modifica articoli del blog con questo editor.</p>
+      
+      <WysiwygEditor 
+        initialContent="<h2>Prova l'editor!</h2><p>Questo è un esempio di editor WYSIWYG integrato con Astro.</p>"
+        title="Articolo di prova"
+        description="Descrizione dell'articolo di prova"
+        category="Psicologia"
+      />
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .admin-header {
+    margin-bottom: 2rem;
+  }
+  
+  .admin-header h1 {
+    margin-bottom: 0.5rem;
+    color: var(--color-secondary);
+  }
+  
+  .editor-section {
+    background-color: var(--color-bg-alt);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  
+  .editor-section h2 {
+    margin-bottom: 0.5rem;
+    color: var(--color-secondary);
+  }
+  
+  .editor-section p {
+    margin-bottom: 1.5rem;
+  }
+</style>

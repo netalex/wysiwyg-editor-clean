@@ -1,16 +1,87 @@
 ---
-
+import Layout from '../layouts/Layout.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout title="Blog Psicologo - Home">
+  <section class="hero">
+    <h1>Blog Psicologo</h1>
+    <p>Risorse e articoli su psicologia, benessere e terapia</p>
+  </section>
+  
+  <section class="welcome">
+    <h2>Benvenuto nel nostro blog</h2>
+    <p>Questo è un sito per professionisti della salute mentale che offre risorse, articoli e approfondimenti su temi legati alla psicologia, al benessere e alla terapia.</p>
+    <div class="cta-buttons">
+      <a href="/blog" class="button">Leggi gli articoli</a>
+      <a href="/admin" class="button secondary">Area amministrazione</a>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: 4rem 0;
+    background-color: var(--color-bg-alt);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  
+  .hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--color-primary);
+  }
+  
+  .hero p {
+    font-size: 1.5rem;
+    color: var(--color-text-light);
+  }
+  
+  .welcome {
+    padding: 2rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .welcome h2 {
+    margin-bottom: 1rem;
+    color: var(--color-secondary);
+  }
+  
+  .welcome p {
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+  }
+  
+  .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .button {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.2s;
+  }
+  
+  .button:hover {
+    background-color: #3d8b40;
+    text-decoration: none;
+  }
+  
+  .button.secondary {
+    background-color: var(--color-secondary);
+  }
+  
+  .button.secondary:hover {
+    background-color: #222;
+  }
+</style>

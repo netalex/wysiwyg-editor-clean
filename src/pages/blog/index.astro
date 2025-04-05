@@ -1,0 +1,133 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Simulare alcuni articoli
+const articles = [
+  {
+    id: 1,
+    title: 'L\'importanza della mindfulness nella vita quotidiana',
+    description: 'Scopri come la pratica della mindfulness può migliorare il tuo benessere e ridurre lo stress.',
+    date: '2023-05-15',
+    category: 'Mindfulness',
+    slug: '#'
+  },
+  {
+    id: 2,
+    title: 'Strategie per gestire l\'ansia sociale',
+    description: 'Consigli pratici per affrontare situazioni sociali ansiogene e migliorare le proprie competenze relazionali.',
+    date: '2023-04-22',
+    category: 'Psicologia',
+    slug: '#'
+  },
+  {
+    id: 3,
+    title: 'Il ruolo della terapia cognitivo-comportamentale nel trattamento della depressione',
+    description: 'Un\'analisi dell\'efficacia della TCC nel trattamento dei disturbi dell\'umore.',
+    date: '2023-03-10',
+    category: 'Terapia',
+    slug: '#'
+  }
+];
+---
+
+<Layout title="Blog - Articoli">
+  <div class="blog-header">
+    <h1>Blog</h1>
+    <p>Articoli e risorse su psicologia, benessere e terapia</p>
+  </div>
+  
+  <div class="blog-grid">
+    {articles.map(article => (
+      <article class="blog-card">
+        <div class="card-content">
+          <span class="category">{article.category}</span>
+          <h2><a href={article.slug}>{article.title}</a></h2>
+          <p class="date">{new Date(article.date).toLocaleDateString('it-IT', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}</p>
+          <p class="description">{article.description}</p>
+          <a href={article.slug} class="read-more">Leggi l'articolo</a>
+        </div>
+      </article>
+    ))}
+  </div>
+</Layout>
+
+<style>
+  .blog-header {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .blog-header h1 {
+    margin-bottom: 0.5rem;
+    color: var(--color-secondary);
+  }
+  
+  .blog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+  }
+  
+  .blog-card {
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .blog-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  }
+  
+  .card-content {
+    padding: 1.5rem;
+  }
+  
+  .category {
+    display: inline-block;
+    background-color: var(--color-primary);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .blog-card h2 {
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+  }
+  
+  .blog-card h2 a {
+    color: var(--color-secondary);
+    text-decoration: none;
+  }
+  
+  .blog-card h2 a:hover {
+    color: var(--color-primary);
+  }
+  
+  .date {
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  
+  .description {
+    margin-bottom: 1.5rem;
+    color: var(--color-text);
+    line-height: 1.6;
+  }
+  
+  .read-more {
+    display: inline-block;
+    color: var(--color-primary);
+    font-weight: bold;
+  }
+</style>

@@ -1,0 +1,170 @@
+---
+interface Props {
+  initialContent?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+}
+
+const {
+  initialContent = "",
+  title = "",
+  description = "",
+  category = "",
+} = Astro.props;
+---
+
+<div class="wysiwyg-editor">
+  <div class="metadata-fields">
+    <div class="field">
+      <label for="title">Titolo</label>
+      <input type="text" id="title" value={title} />
+    </div>
+
+    <div class="field">
+      <label for="description">Descrizione</label>
+      <textarea id="description">{description}</textarea>
+    </div>
+
+    <div class="field">
+      <label for="category">Categoria</label>
+      <select id="category">
+        <option value="" selected={!category}>Seleziona categoria</option>
+        <option value="Psicologia" selected={category === "Psicologia"}
+          >Psicologia</option
+        >
+        <option value="Terapia" selected={category === "Terapia"}
+          >Terapia</option
+        >
+        <option value="Benessere" selected={category === "Benessere"}
+          >Benessere</option
+        >
+        <option value="Mindfulness" selected={category === "Mindfulness"}
+          >Mindfulness</option
+        >
+      </select>
+    </div>
+  </div>
+
+  <div class="editor-wrapper">
+    <textarea id="wysiwyg-editor">{initialContent}</textarea>
+  </div>
+
+  <div class="editor-actions">
+    <button class="save-button"> Salva </button>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Caricare TinyMCE dalla directory locale
+    const script = document.createElement("script");
+    script.src = "/assets/tinymce/tinymce.min.js";
+    script.onload = () => {
+      // Inizializzare TinyMCE
+      window.tinymce.init({
+        selector: "#wysiwyg-editor",
+        plugins: "link image lists table code",
+        toolbar:
+          "undo redo | blocks | bold italic | alignleft aligncenter alignright | indent outdent | bullist numlist | link image | table | code",
+        menubar: "file edit view insert format tools table help",
+        content_style:
+          "body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 16px; }",
+        height: 400,
+        promotion: false, // Rimuove i banner promozionali
+        branding: false, // Rimuove il branding di TinyMCE
+      });
+    };
+    document.head.appendChild(script);
+    // Gestione pulsante salva
+    const saveButton = document.querySelector(".save-button");
+    saveButton.addEventListener("click", () => {
+      // Ottieni l'editor
+      const editor = window.tinymce.get("wysiwyg-editor");
+
+      // Raccogli i dati dal form
+      const data = {
+        title: document.getElementById("title").value,
+        description: document.getElementById("description").value,
+        category: document.getElementById("category").value,
+        content: editor
+          ? editor.getContent()
+          : document.getElementById("wysiwyg-editor").value,
+      };
+
+      // Per ora, mostro solo i dati in un alert
+      alert("Dati da salvare:\n" + JSON.stringify(data, null, 2));
+
+      // In futuro qui andrà l'integrazione con Git Gateway
+    });
+  });
+</script>
+
+<style>
+  .wysiwyg-editor {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .metadata-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .field label {
+    font-weight: bold;
+    color: var(--color-text);
+  }
+
+  .field input,
+  .field textarea,
+  .field select {
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+  }
+
+  .field textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+
+  .editor-wrapper {
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+  }
+
+  .editor-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .save-button {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .save-button:hover {
+    background-color: #3d8b40;
+  }
+</style>
