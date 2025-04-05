@@ -9,6 +9,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.6.1"
+    "astro": "^5.6.1",
+    "cloudinary": "^2.6.0",
+    "decap-cms": "^3.6.2",
+    "tinymce": "^7.7.2"
   }
 }
