@@ -19,7 +19,7 @@ if [ -f "../temp-tinymce/tinymce.zip" ]; then
 else
   # Scarica TinyMCE
   echo -e "${BLUE}Downloading TinyMCE...${NC}"
-  curl -L https://download.tiny.cloud/tinymce/community/tinymce_6.7.3.zip -o tinymce.zip
+  curl -L https://download.tiny.cloud/tinymce/community/tinymce_6.8.3.zip -o tinymce.zip
 fi
 
 # Estrai l'archivio

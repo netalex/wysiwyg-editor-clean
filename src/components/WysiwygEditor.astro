@@ -146,14 +146,16 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
       branding: false,
       // Imposta il percorso base per i plugin e skin
       base_url: tinymcePath,
-      skin_url: `${tinymcePath}/skins/ui/oxide`,
-      theme_url: `${tinymcePath}/themes/silver`,
-      icons_url: `${tinymcePath}/icons/default`,
+
       // Impostazioni aggiuntive
       entity_encoding: "raw",
       convert_urls: false,
       relative_urls: false,
       language: "it",
+
+      // La cosa più importante: imposta `suffix` per indicare a TinyMCE di caricare i file .min.js
+      suffix: ".min",
+
       // Abilita l'autosalvataggio
       autosave_ask_before_unload: true,
       autosave_interval: "30s",
