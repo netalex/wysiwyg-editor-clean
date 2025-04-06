@@ -1,9 +1,20 @@
-// Cloudinary Image Upload Component // src/components/CloudinaryUploader.astro
+---
+interface Props {
+  uploadPreset: string;
+  cloudName: string;
+  folder?: string;
+  maxFileSize?: number;
+  allowedFormats?: string[];
+}
 
-interface Props { uploadPreset: string; cloudName: string; folder?: string; maxFileSize?:
-number; allowedFormats?: string[]; } const { uploadPreset, cloudName, folder = "blog-images",
-maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "webp",
-"svg"] } = Astro.props;
+const {
+  uploadPreset,
+  cloudName,
+  folder = "blog-images",
+  maxFileSize = 10485760, // 10MB
+  allowedFormats = ["jpg", "jpeg", "png", "gif", "webp", "svg"],
+} = Astro.props;
+---
 
 <div class="cloudinary-uploader">
   <div class="upload-container">
@@ -44,14 +55,36 @@ maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "
     const progressText = document.getElementById("progress-text");
     const uploadedImageUrlInput = document.getElementById("uploaded-image-url");
 
+    // Verifica che tutti gli elementi necessari esistano
+    if (
+      !fileInput ||
+      !previewContainer ||
+      !progressContainer ||
+      !progressBarFill ||
+      !progressText ||
+      !uploadedImageUrlInput
+    ) {
+      console.error("Elementi DOM non trovati");
+      return;
+    }
+
     // Event listener per la selezione del file
     fileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
+      // Ottieni il file selezionato
+      if (!e.target || !e.target.files || e.target.files.length === 0) return;
 
+      const file = e.target.files[0];
       if (!file) return;
 
       // Controlla il formato del file
-      const fileExtension = file.name.split(".").pop().toLowerCase();
+      const fileNameParts = file.name.split(".");
+      if (fileNameParts.length <= 1) {
+        alert("Il file non ha un'estensione");
+        fileInput.value = ""; // Reset input
+        return;
+      }
+
+      const fileExtension = fileNameParts.pop()?.toLowerCase() || "";
       if (!allowedFormats.includes(fileExtension)) {
         alert(
           `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`
@@ -81,9 +114,11 @@ maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "
       const reader = new FileReader();
 
       reader.onload = (e) => {
-        previewContainer.innerHTML = `
-          <img src="${e.target.result}" alt="Preview" class="preview-image" />
-        `;
+        if (previewContainer && e.target && e.target.result) {
+          previewContainer.innerHTML = `
+            <img src="${e.target.result}" alt="Preview" class="preview-image" />
+          `;
+        }
       };
 
       reader.readAsDataURL(file);
@@ -124,7 +159,9 @@ maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "
           const response = JSON.parse(xhr.responseText);
 
           // Salva l'URL dell'immagine
-          uploadedImageUrlInput.value = response.secure_url;
+          if (uploadedImageUrlInput) {
+            uploadedImageUrlInput.value = response.secure_url;
+          }
 
           // Emetti un evento personalizzato
           const uploadEvent = new CustomEvent("cloudinaryUploadComplete", {
@@ -141,7 +178,9 @@ maxFileSize = 10485760, // 10MB allowedFormats = ["jpg", "jpeg", "png", "gif", "
 
           // Nascondi la barra di progresso dopo un ritardo
           setTimeout(() => {
-            progressContainer.style.display = "none";
+            if (progressContainer) {
+              progressContainer.style.display = "none";
+            }
           }, 1000);
         } else {
           alert(

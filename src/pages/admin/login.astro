@@ -95,11 +95,16 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
         // Nascondi tutti i contenuti delle tab
         tabContents.forEach((content) => content.classList.add("hidden"));
-        successMessage.classList.add("hidden");
+        if (successMessage) {
+          successMessage.classList.add("hidden");
+        }
 
         // Mostra il contenuto della tab selezionata
         const tabId = button.getAttribute("data-tab");
-        document.getElementById(`${tabId}-tab`).classList.remove("hidden");
+        const tabContent = document.getElementById(`${tabId}-tab`);
+        if (tabContent) {
+          tabContent.classList.remove("hidden");
+        }
       });
     });
 
@@ -107,76 +112,124 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const loginForm = document.getElementById("login-form");
     const errorMessage = document.getElementById("error-message");
 
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+        const emailInput = document.getElementById(
+          "email"
+        ) as HTMLInputElement | null;
+        const passwordInput = document.getElementById(
+          "password"
+        ) as HTMLInputElement | null;
 
-      try {
-        // Resetta il messaggio di errore
-        errorMessage.textContent = "";
+        if (!emailInput || !passwordInput) return;
 
-        // Bottone di login durante caricamento
-        const loginButton = loginForm.querySelector('button[type="submit"]');
-        loginButton.disabled = true;
-        loginButton.textContent = "Accesso in corso...";
+        const email = emailInput.value;
+        const password = passwordInput.value;
 
-        // Effettua il login
-        await auth.signInWithPassword(email, password);
+        try {
+          // Resetta il messaggio di errore
+          if (errorMessage) {
+            errorMessage.textContent = "";
+          }
 
-        // Reindirizza all'area admin
-        window.location.href = "/admin";
-      } catch (error) {
-        // Mostra il messaggio di errore
-        errorMessage.textContent = error.message || "Errore durante il login";
+          // Bottone di login durante caricamento
+          const loginButton = loginForm.querySelector(
+            'button[type="submit"]'
+          ) as HTMLButtonElement | null;
+          if (loginButton) {
+            loginButton.disabled = true;
+            loginButton.textContent = "Accesso in corso...";
+          }
 
-        // Ripristina il bottone
-        const loginButton = loginForm.querySelector('button[type="submit"]');
-        loginButton.disabled = false;
-        loginButton.textContent = "Accedi";
-      }
-    });
+          // Effettua il login
+          await auth.signInWithPassword(email, password);
+
+          // Reindirizza all'area admin
+          window.location.href = "/admin";
+        } catch (error: unknown) {
+          // Mostra il messaggio di errore
+          if (errorMessage) {
+            errorMessage.textContent =
+              error instanceof Error
+                ? error.message
+                : "Errore durante il login";
+          }
+
+          // Ripristina il bottone
+          const loginButton = loginForm.querySelector(
+            'button[type="submit"]'
+          ) as HTMLButtonElement | null;
+          if (loginButton) {
+            loginButton.disabled = false;
+            loginButton.textContent = "Accedi";
+          }
+        }
+      });
+    }
 
     // Form di login con magic link
     const magicLinkForm = document.getElementById("magic-link-form");
     const magicErrorMessage = document.getElementById("magic-error-message");
 
-    magicLinkForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    if (magicLinkForm) {
+      magicLinkForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-      const email = document.getElementById("magic-email").value;
+        const emailInput = document.getElementById(
+          "magic-email"
+        ) as HTMLInputElement | null;
+        if (!emailInput) return;
 
-      try {
-        // Resetta il messaggio di errore
-        magicErrorMessage.textContent = "";
+        const email = emailInput.value;
 
-        // Bottone di login durante caricamento
-        const magicButton = magicLinkForm.querySelector(
-          'button[type="submit"]'
-        );
-        magicButton.disabled = true;
-        magicButton.textContent = "Invio in corso...";
+        try {
+          // Resetta il messaggio di errore
+          if (magicErrorMessage) {
+            magicErrorMessage.textContent = "";
+          }
 
-        // Invia il magic link
-        await auth.signInWithOtp(email);
+          // Bottone di login durante caricamento
+          const magicButton = magicLinkForm.querySelector(
+            'button[type="submit"]'
+          ) as HTMLButtonElement | null;
+          if (magicButton) {
+            magicButton.disabled = true;
+            magicButton.textContent = "Invio in corso...";
+          }
 
-        // Nascondi il form e mostra il messaggio di successo
-        document.getElementById("magic-link-tab").classList.add("hidden");
-        successMessage.classList.remove("hidden");
-      } catch (error) {
-        // Mostra il messaggio di errore
-        magicErrorMessage.textContent =
-          error.message || "Errore durante l'invio del magic link";
+          // Invia il magic link
+          await auth.signInWithOtp(email);
 
-        // Ripristina il bottone
-        const magicButton = magicLinkForm.querySelector(
-          'button[type="submit"]'
-        );
-        magicButton.disabled = false;
-        magicButton.textContent = "Invia Magic Link";
-      }
-    });
+          // Nascondi il form e mostra il messaggio di successo
+          const magicLinkTab = document.getElementById("magic-link-tab");
+          if (magicLinkTab) {
+            magicLinkTab.classList.add("hidden");
+          }
+          if (successMessage) {
+            successMessage.classList.remove("hidden");
+          }
+        } catch (error: unknown) {
+          // Mostra il messaggio di errore
+          if (magicErrorMessage) {
+            magicErrorMessage.textContent =
+              error instanceof Error
+                ? error.message
+                : "Errore durante l'invio del magic link";
+          }
+
+          // Ripristina il bottone
+          const magicButton = magicLinkForm.querySelector(
+            'button[type="submit"]'
+          ) as HTMLButtonElement | null;
+          if (magicButton) {
+            magicButton.disabled = false;
+            magicButton.textContent = "Invia Magic Link";
+          }
+        }
+      });
+    }
 
     // Controlla se l'utente è già autenticato
     const checkAuth = async () => {

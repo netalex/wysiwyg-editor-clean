@@ -3,15 +3,21 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --host",
     "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "preview": "astro preview --host",
+    "astro": "astro",
+    "dev:windows": "cross-env CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true astro dev --host",
+    "setup:tinymce": "bash scripts/setup-tinymce.sh"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "astro": "^5.6.1",
     "cloudinary": "^2.6.0",
     "decap-cms": "^3.6.2",
     "tinymce": "^7.7.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }
