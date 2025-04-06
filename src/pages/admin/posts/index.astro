@@ -1,10 +1,10 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+// import AuthGuard from "../../../components/AuthGuard.astro";
 ---
 
-<script lang="ts" define:vars={{ slug }}></script>
-
 <BaseLayout title="Gestione Post - WYSIWYG Editor">
+  <!-- <AuthGuard> Future implementation -->
   <div class="admin-container">
     <h1>Gestione Post</h1>
 
@@ -13,26 +13,65 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
       <div class="admin-actions">
         <button id="newPostBtn" class="new-post-btn">Nuovo Post</button>
         <button id="deleteSelectedBtn" class="delete-selected-btn" disabled
-          >Elimina selezionati</button
+          >Elimina selezionati (<span id="selected-count">0</span>)</button
         >
       </div>
+    </div>
+
+    <div class="posts-filter">
+      <input
+        type="text"
+        id="search-posts"
+        placeholder="Cerca post..."
+        class="search-input"
+      />
+      <select id="category-filter" class="category-filter">
+        <option value="">Tutte le categorie</option>
+        <option value="Psicologia">Psicologia</option>
+        <option value="Terapia">Terapia</option>
+        <option value="Benessere">Benessere</option>
+        <option value="Mindfulness">Mindfulness</option>
+      </select>
     </div>
 
     <div id="postsList" class="posts-list">
       <p>Caricamento post...</p>
     </div>
   </div>
+  <!-- </AuthGuard> -->
 </BaseLayout>
 
 <script>
+  interface BlogPost {
+    title: string;
+    slug: string;
+    content: string;
+    category?: string;
+    description?: string;
+    date: string;
+    updatedAt?: string;
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     // Elementi DOM con controlli null-safety
     const postsListContainer = document.getElementById("postsList");
     const newPostBtn = document.getElementById("newPostBtn");
     const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+    const selectedCountSpan = document.getElementById("selected-count");
+    const searchInput = document.getElementById(
+      "search-posts"
+    ) as HTMLInputElement;
+    const categoryFilter = document.getElementById(
+      "category-filter"
+    ) as HTMLSelectElement;
 
     // Verifica che gli elementi esistano
-    if (!postsListContainer || !newPostBtn || !deleteSelectedBtn) {
+    if (
+      !postsListContainer ||
+      !newPostBtn ||
+      !deleteSelectedBtn ||
+      !selectedCountSpan
+    ) {
       console.error("Required DOM elements not found");
       return;
     }
@@ -47,32 +86,55 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
       deleteSelectedPosts();
     });
 
+    // Eventi di filtro
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        loadPosts();
+      });
+    }
+
+    if (categoryFilter) {
+      categoryFilter.addEventListener("change", () => {
+        loadPosts();
+      });
+    }
+
     // Carica i post dal localStorage
     loadPosts();
 
     function loadPosts() {
       try {
         // Cast esplicito a array di oggetti
-        const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+        const allPosts: BlogPost[] = JSON.parse(
+          localStorage.getItem("blog-posts") || "[]"
+        );
+
+        // Filtro di ricerca
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+        const categoryValue = categoryFilter ? categoryFilter.value : "";
+
+        // Applica i filtri
+        const posts = allPosts.filter((post: BlogPost) => {
+          const matchesSearch =
+            !searchTerm ||
+            post.title.toLowerCase().includes(searchTerm) ||
+            post.slug.toLowerCase().includes(searchTerm) ||
+            (post.description &&
+              post.description.toLowerCase().includes(searchTerm)) ||
+            post.content.toLowerCase().includes(searchTerm);
+
+          const matchesCategory =
+            !categoryValue || post.category === categoryValue;
+
+          return matchesSearch && matchesCategory;
+        });
 
         if (posts.length === 0) {
           if (postsListContainer) {
-            if (postsListContainer) {
-              if (postsListContainer) {
-                if (postsListContainer) {
-                  if (postsListContainer) {
-                    if (postsListContainer) {
-                      if (postsListContainer) {
-                        if (postsListContainer) {
-                          postsListContainer.innerHTML =
-                            '<p class="no-posts">Nessun post disponibile. Crea il tuo primo post!</p>';
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+            postsListContainer.innerHTML =
+              searchTerm || categoryValue
+                ? '<p class="no-posts">Nessun post corrisponde ai criteri di ricerca.</p>'
+                : '<p class="no-posts">Nessun post disponibile. Crea il tuo primo post!</p>';
           }
           return;
         }
@@ -80,7 +142,9 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
         // Ordina i post per data (più recenti prima)
         // Usiamo Number() per garantire che il confronto sia numerico
         posts.sort(
-          (a: { date: string }, b: { date: string }) => Number(new Date(b.date)) - Number(new Date(a.date))
+          (a: BlogPost, b: BlogPost) =>
+            Number(new Date(b.updatedAt || b.date)) -
+            Number(new Date(a.updatedAt || a.date))
         );
 
         // Genera HTML per la tabella dei post
@@ -92,22 +156,24 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
                   <input type="checkbox" id="select-all-posts" title="Seleziona tutti">
                 </th>
                 <th scope="col">Titolo</th>
-                <th scope="col">Slug</th>
+                <th scope="col">Categoria</th>
                 <th scope="col">Data</th>
                 <th scope="col">Azioni</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="posts-table-body">
         `;
 
-        posts.forEach((post: { title: string; slug: string; date: string }) => {
+        posts.forEach((post: BlogPost) => {
           // Formatta la data in italiano
-          const postDate = new Date(post.date);
-          const date = postDate.toLocaleDateString("it-IT", {
+          const postDate = new Date(post.updatedAt || post.date);
+          const formattedDate = postDate.toLocaleDateString("it-IT", {
             year: "numeric",
             month: "long",
             day: "numeric",
           });
+
+          const isUpdated = post.updatedAt && post.updatedAt !== post.date;
 
           // Escape per evitare XSS
           const safeTitle = String(post.title)
@@ -124,17 +190,39 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
 
+          const safeCategory = post.category
+            ? String(post.category)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;")
+            : "<em>Nessuna</em>";
+
           tableHTML += `
             <tr data-slug="${safeSlug}">
               <td class="checkbox-cell">
                 <input type="checkbox" class="post-select" data-slug="${safeSlug}">
               </td>
-              <td>${safeTitle}</td>
-              <td>${safeSlug}</td>
-              <td>${date}</td>
+              <td>
+                <a href="/blog/${safeSlug}" target="_blank" class="post-title">${safeTitle}</a>
+                <small class="post-slug">/${safeSlug}</small>
+              </td>
+              <td>${safeCategory}</td>
+              <td>
+                ${formattedDate}
+                ${isUpdated ? '<span class="updated-badge">modificato</span>' : ""}
+              </td>
               <td class="actions">
-                <button class="edit-btn" data-slug="${safeSlug}">Modifica</button>
-                <button class="delete-btn" data-slug="${safeSlug}">Elimina</button>
+                <button class="edit-btn" data-slug="${safeSlug}" title="Modifica">
+                  <span class="icon">✏️</span>
+                </button>
+                <button class="view-btn" data-slug="${safeSlug}" title="Visualizza">
+                  <span class="icon">👁️</span>
+                </button>
+                <button class="delete-btn" data-slug="${safeSlug}" title="Elimina">
+                  <span class="icon">🗑️</span>
+                </button>
               </td>
             </tr>
           `;
@@ -147,83 +235,143 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 
         if (postsListContainer) {
           postsListContainer.innerHTML = tableHTML;
+
+          // Salva lo stato attuale delle checkbox selezionate
+          const selectedSlugs = getSelectedSlugs();
+
+          // Aggiungi event listeners per i pulsanti di modifica ed eliminazione
+          setupTableEventListeners();
+
+          // Ripristina le selezioni
+          restoreSelectedCheckboxes(selectedSlugs);
         }
 
-        // Aggiungi event listeners per i pulsanti di modifica ed eliminazione
-        document.querySelectorAll(".edit-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const slug = btn.getAttribute("data-slug");
-            if (slug) editPost(slug);
-          });
-        });
-
-        document.querySelectorAll(".delete-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const slug = btn.getAttribute("data-slug");
-            if (slug) deletePost(slug);
-          });
-        });
-
-        // Gestione selezione multipla
-        const selectAllCheckbox = document.getElementById(
-          "select-all-posts"
-        ) as HTMLInputElement;
-        const checkboxes = document.querySelectorAll(".post-select");
-
-        // Gestione "Seleziona tutti"
-        if (selectAllCheckbox) {
-          selectAllCheckbox.addEventListener("change", () => {
-            const isChecked = selectAllCheckbox.checked;
-
-            checkboxes.forEach((checkbox) => {
-              // Cast a HTMLInputElement per accedere alla proprietà checked
-              (checkbox as HTMLInputElement).checked = isChecked;
+        // Funzione per configurare tutti gli event listeners della tabella
+        function setupTableEventListeners() {
+          document.querySelectorAll(".edit-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const slug = btn.getAttribute("data-slug");
+              if (slug) editPost(slug);
             });
+          });
 
-            // Abilita/disabilita il pulsante "Elimina selezionati"
-            updateDeleteSelectedButton();
+          document.querySelectorAll(".view-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const slug = btn.getAttribute("data-slug");
+              if (slug) window.open(`/blog/${slug}`, "_blank");
+            });
+          });
+
+          document.querySelectorAll(".delete-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const slug = btn.getAttribute("data-slug");
+              if (slug) deletePost(slug);
+            });
+          });
+
+          // Gestione selezione multipla
+          const selectAllCheckbox = document.getElementById(
+            "select-all-posts"
+          ) as HTMLInputElement;
+          const checkboxes = document.querySelectorAll(".post-select");
+
+          // Gestione "Seleziona tutti"
+          if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener("change", () => {
+              const isChecked = selectAllCheckbox.checked;
+
+              checkboxes.forEach((checkbox) => {
+                // Cast a HTMLInputElement per accedere alla proprietà checked
+                (checkbox as HTMLInputElement).checked = isChecked;
+              });
+
+              // Abilita/disabilita il pulsante "Elimina selezionati"
+              updateDeleteSelectedButton();
+            });
+          }
+
+          // Gestione singole checkbox
+          checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener("change", () => {
+              // Controlla se tutte le checkbox sono selezionate
+              const allChecked = Array.from(checkboxes).every(
+                (cb) => (cb as HTMLInputElement).checked
+              );
+
+              const anyChecked = Array.from(checkboxes).some(
+                (cb) => (cb as HTMLInputElement).checked
+              );
+
+              // Aggiorna lo stato di "Seleziona tutti"
+              if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = anyChecked && !allChecked;
+              }
+
+              // Abilita/disabilita il pulsante "Elimina selezionati"
+              updateDeleteSelectedButton();
+            });
           });
         }
-
-        // Gestione singole checkbox
-        checkboxes.forEach((checkbox) => {
-          checkbox.addEventListener("change", () => {
-            // Cast a HTMLInputElement per le verifiche
-            // Controlla se tutte le checkbox sono selezionate
-            const allChecked = Array.from(checkboxes).every(
-              (cb) => (cb as HTMLInputElement).checked
-            );
-
-            const anyChecked = Array.from(checkboxes).some(
-              (cb) => (cb as HTMLInputElement).checked
-            );
-
-            // Aggiorna lo stato di "Seleziona tutti"
-            if (selectAllCheckbox) {
-              selectAllCheckbox.checked = allChecked;
-              selectAllCheckbox.indeterminate = anyChecked && !allChecked;
-            }
-
-            // Abilita/disabilita il pulsante "Elimina selezionati"
-            updateDeleteSelectedButton();
-          });
-        });
       } catch (error) {
         console.error("Error loading posts:", error);
-        postsListContainer && postsListContainer.innerHTML =
-          '<p class="error-message">Si è verificato un errore nel caricamento dei post.</p>';
+        if (postsListContainer) {
+          postsListContainer.innerHTML =
+            '<p class="error-message">Si è verificato un errore nel caricamento dei post.</p>';
+        }
       }
     }
 
     // Funzione per aggiornare lo stato del pulsante "Elimina selezionati"
     function updateDeleteSelectedButton() {
       const checkboxes = document.querySelectorAll(".post-select");
-      const anyChecked = Array.from(checkboxes).some(
+      const selectedCount = Array.from(checkboxes).filter(
         (cb) => (cb as HTMLInputElement).checked
-      );
+      ).length;
 
       // Cast a HTMLButtonElement per accedere alla proprietà disabled
-      (deleteSelectedBtn as HTMLButtonElement).disabled = !anyChecked;
+      (deleteSelectedBtn as HTMLButtonElement).disabled = selectedCount === 0;
+
+      // Aggiorna il conteggio
+      if (selectedCountSpan) {
+        selectedCountSpan.textContent = selectedCount.toString();
+      }
+    }
+
+    // Funzione per ottenere gli slug dei post selezionati
+    function getSelectedSlugs(): string[] {
+      const selectedCheckboxes = document.querySelectorAll(
+        ".post-select:checked"
+      );
+      return Array.from(selectedCheckboxes)
+        .map((checkbox) => checkbox.getAttribute("data-slug"))
+        .filter((slug): slug is string => slug !== null);
+    }
+
+    // Funzione per ripristinare le checkbox selezionate dopo il ricaricamento della tabella
+    function restoreSelectedCheckboxes(slugs: string[]): void {
+      if (slugs.length === 0) return;
+
+      const checkboxes = document.querySelectorAll(".post-select");
+      checkboxes.forEach((checkbox) => {
+        const slug = checkbox.getAttribute("data-slug");
+        if (slug && slugs.includes(slug)) {
+          (checkbox as HTMLInputElement).checked = true;
+        }
+      });
+
+      // Aggiorna anche lo stato della checkbox "Seleziona tutti"
+      const selectAllCheckbox = document.getElementById(
+        "select-all-posts"
+      ) as HTMLInputElement;
+      if (selectAllCheckbox) {
+        const allChecked = checkboxes.length === slugs.length;
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = !allChecked && slugs.length > 0;
+      }
+
+      // Aggiorna il pulsante "Elimina selezionati"
+      updateDeleteSelectedButton();
     }
 
     function editPost(slug: string) {
@@ -243,49 +391,101 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
       // Recupera i post dal localStorage
       const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
 
+      // Trova il titolo del post per il messaggio di conferma
+      const postToDelete = posts.find((post: BlogPost) => post.slug === slug);
+      const postTitle = postToDelete ? postToDelete.title : slug;
+
       // Filtra per rimuovere il post con lo slug specificato
-      const updatedPosts = posts.filter((post: { slug: any; }) => post.slug !== slug);
+      const updatedPosts = posts.filter((post: BlogPost) => post.slug !== slug);
 
       // Salva i post aggiornati nel localStorage
       localStorage.setItem("blog-posts", JSON.stringify(updatedPosts));
+
+      // Notifica l'utente
+      const message = document.createElement("div");
+      message.className = "toast-message";
+      message.innerHTML = `
+        <div class="toast-content">
+          <span class="toast-icon">✓</span>
+          <span>Post "${postTitle}" eliminato con successo</span>
+        </div>
+        <button class="toast-close">&times;</button>
+      `;
+      document.body.appendChild(message);
+
+      // Aggiungi handler per chiudere il toast
+      const closeBtn = message.querySelector(".toast-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          message.remove();
+        });
+      }
+
+      // Auto-chiusura dopo 5 secondi
+      setTimeout(() => {
+        if (document.body.contains(message)) {
+          message.remove();
+        }
+      }, 5000);
 
       // Ricarica la lista dei post
       loadPosts();
     }
 
     function deleteSelectedPosts() {
-      // Cast a HTMLInputElement per accedere alla proprietà checked
-      const selectedCheckboxes = document.querySelectorAll(
-        ".post-select:checked"
-      );
+      const selectedSlugs = getSelectedSlugs();
 
-      if (selectedCheckboxes.length === 0) {
+      if (selectedSlugs.length === 0) {
         return;
       }
 
       if (
         !confirm(
-          `Sei sicuro di voler eliminare ${selectedCheckboxes.length} post? Questa azione non può essere annullata.`
+          `Sei sicuro di voler eliminare ${selectedSlugs.length} post? Questa azione non può essere annullata.`
         )
       ) {
         return;
       }
 
-      // Raccogli gli slug dei post selezionati
-      const slugsToDelete = Array.from(selectedCheckboxes)
-        .map((checkbox) => checkbox.getAttribute("data-slug"))
-        .filter(Boolean); // Rimuove eventuali null
-
       // Recupera i post dal localStorage
-      const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+      const posts: BlogPost[] = JSON.parse(
+        localStorage.getItem("blog-posts") || "[]"
+      );
 
       // Filtra per rimuovere i post selezionati
       const updatedPosts = posts.filter(
-        (post: { slug: string | null; }) => !slugsToDelete.includes(post.slug)
+        (post: BlogPost) => !selectedSlugs.includes(post.slug)
       );
 
       // Salva i post aggiornati nel localStorage
       localStorage.setItem("blog-posts", JSON.stringify(updatedPosts));
+
+      // Notifica l'utente
+      const message = document.createElement("div");
+      message.className = "toast-message";
+      message.innerHTML = `
+        <div class="toast-content">
+          <span class="toast-icon">✓</span>
+          <span>${selectedSlugs.length} post eliminati con successo</span>
+        </div>
+        <button class="toast-close">&times;</button>
+      `;
+      document.body.appendChild(message);
+
+      // Aggiungi handler per chiudere il toast
+      const closeBtn = message.querySelector(".toast-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          message.remove();
+        });
+      }
+
+      // Auto-chiusura dopo 5 secondi
+      setTimeout(() => {
+        if (document.body.contains(message)) {
+          message.remove();
+        }
+      }, 5000);
 
       // Ricarica la lista dei post
       loadPosts();
@@ -295,7 +495,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 
 <style>
   .admin-container {
-    max-width: 800px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
   }
@@ -315,6 +515,12 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
   .back-link {
     color: #2196f3;
     text-decoration: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
   }
 
   .new-post-btn {
@@ -325,6 +531,26 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .posts-filter {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .search-input,
+  .category-filter {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .search-input {
+    flex-grow: 1;
   }
 
   .posts-list {
@@ -335,11 +561,16 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
     text-align: center;
     padding: 20px;
     color: #666;
+    background-color: #f9f9f9;
+    border-radius: 8px;
   }
 
   .posts-table {
     width: 100%;
     border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
   }
 
   .posts-table th,
@@ -350,35 +581,89 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
   }
 
   .posts-table th {
-    background-color: #f5f5f5;
+    background-color: #f0f0f0;
     font-weight: bold;
+    color: #555;
+  }
+
+  .posts-table tr:last-child td {
+    border-bottom: none;
   }
 
   .posts-table tr:hover {
     background-color: #f9f9f9;
   }
 
+  .post-title {
+    color: #333;
+    text-decoration: none;
+    font-weight: 500;
+    display: block;
+  }
+
+  .post-title:hover {
+    text-decoration: underline;
+    color: #2196f3;
+  }
+
+  .post-slug {
+    color: #999;
+    font-size: 12px;
+    display: block;
+    margin-top: 4px;
+  }
+
+  .updated-badge {
+    display: inline-block;
+    background-color: #f1f1f1;
+    color: #666;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+
   .actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    justify-content: flex-end;
   }
 
   .edit-btn,
+  .view-btn,
   .delete-btn {
-    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 14px;
+    transition:
+      background-color 0.2s,
+      transform 0.1s;
+    background-color: transparent;
   }
 
-  .edit-btn {
-    background-color: #2196f3;
-    color: white;
+  .edit-btn:hover {
+    background-color: #e3f2fd;
+    transform: translateY(-1px);
   }
 
-  .delete-btn {
-    background-color: #f44336;
-    color: white;
+  .view-btn:hover {
+    background-color: #e8f5e9;
+    transform: translateY(-1px);
+  }
+
+  .delete-btn:hover {
+    background-color: #ffebee;
+    transform: translateY(-1px);
+  }
+
+  .icon {
+    font-size: 16px;
   }
 
   .delete-selected-btn {
@@ -394,11 +679,18 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
   .delete-selected-btn:disabled {
     background-color: #ffcdd2;
     cursor: not-allowed;
+    opacity: 0.6;
   }
 
   .checkbox-cell {
     width: 40px;
     text-align: center;
+  }
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
   }
 
   .error-message {
@@ -407,5 +699,61 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
     padding: 10px;
     border: 1px solid red;
     margin-top: 10px;
+  }
+
+  /* Toast notification */
+  .toast-message {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #4caf50;
+    color: white;
+    padding: 0;
+    border-radius: 6px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 300px;
+    display: flex;
+    animation: slideIn 0.3s forwards;
+  }
+
+  .toast-content {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    flex-grow: 1;
+  }
+
+  .toast-icon {
+    margin-right: 12px;
+    font-size: 18px;
+  }
+
+  .toast-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 12px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .toast-close:hover {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
 </style>

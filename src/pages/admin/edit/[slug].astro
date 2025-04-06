@@ -3,11 +3,13 @@ export const prerender = false;
 
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import WysiwygEditor from "../../../components/WysiwygEditor.astro";
+// import AuthGuard from "../../../components/AuthGuard.astro";
 
 const { slug } = Astro.params;
 ---
 
 <BaseLayout title="Modifica Post - WYSIWYG Editor">
+  <!-- <AuthGuard> Future implementation -->
   <div class="admin-container">
     <h1>Modifica Post</h1>
 
@@ -36,7 +38,27 @@ const { slug } = Astro.params;
         />
       </div>
 
-      <WysiwygEditor />
+      <div class="form-group">
+        <label for="category">Categoria</label>
+        <select id="category" name="category">
+          <option value="">Seleziona categoria</option>
+          <option value="Psicologia">Psicologia</option>
+          <option value="Terapia">Terapia</option>
+          <option value="Benessere">Benessere</option>
+          <option value="Mindfulness">Mindfulness</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Descrizione</label>
+        <textarea
+          id="description"
+          name="description"
+          placeholder="Inserisci una breve descrizione..."
+          rows="3"></textarea>
+      </div>
+
+      <WysiwygEditor id="post-editor" />
 
       <div class="form-actions">
         <button id="saveBtn" type="button">Aggiorna</button>
@@ -45,12 +67,15 @@ const { slug } = Astro.params;
       </div>
     </div>
   </div>
+  <!-- </AuthGuard> -->
 </BaseLayout>
 
 <script define:vars={{ slug }}>
   document.addEventListener("DOMContentLoaded", () => {
     const titleInput = document.getElementById("title");
     const slugInput = document.getElementById("slug");
+    const categorySelect = document.getElementById("category");
+    const descriptionTextarea = document.getElementById("description");
     const saveBtn = document.getElementById("saveBtn");
     const previewBtn = document.getElementById("previewBtn");
     const cancelBtn = document.getElementById("cancelBtn");
@@ -78,13 +103,22 @@ const { slug } = Astro.params;
       }
 
       // Popola i campi del form
-      titleInput.value = post.title;
-      slugInput.value = post.slug;
+      titleInput.value = post.title || "";
+      slugInput.value = post.slug || "";
+
+      // Popola categoria e descrizione se esistono
+      if (categorySelect && post.category) {
+        categorySelect.value = post.category;
+      }
+
+      if (descriptionTextarea && post.description) {
+        descriptionTextarea.value = post.description;
+      }
 
       // Inserisci il contenuto nell'editor quando TinyMCE è pronto
       const checkTinyMCE = setInterval(() => {
-        if (window.tinymce && window.tinymce.get("wysiwyg-editor")) {
-          window.tinymce.get("wysiwyg-editor").setContent(post.content);
+        if (window.tinymce && window.tinymce.get("post-editor")) {
+          window.tinymce.get("post-editor").setContent(post.content);
           clearInterval(checkTinyMCE);
         }
       }, 100);
@@ -94,6 +128,8 @@ const { slug } = Astro.params;
     saveBtn.addEventListener("click", () => {
       const title = titleInput.value;
       const newSlug = slugInput.value;
+      const category = categorySelect ? categorySelect.value : "";
+      const description = descriptionTextarea ? descriptionTextarea.value : "";
 
       if (!title || !newSlug) {
         alert("Per favore, compila tutti i campi obbligatori");
@@ -101,13 +137,13 @@ const { slug } = Astro.params;
       }
 
       // Verifica che l'editor sia inizializzato
-      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+      if (!window.tinymce || !window.tinymce.get("post-editor")) {
         alert("Editor non inizializzato correttamente. Ricarica la pagina.");
         return;
       }
 
       // Recupera il contenuto dell'editor
-      const content = window.tinymce.get("wysiwyg-editor").getContent();
+      const content = window.tinymce.get("post-editor").getContent();
 
       // Recupera i post dal localStorage
       const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
@@ -125,6 +161,8 @@ const { slug } = Astro.params;
         ...posts[postIndex],
         title,
         slug: newSlug,
+        category,
+        description,
         content,
         updatedAt: new Date().toISOString(),
       };
@@ -146,12 +184,12 @@ const { slug } = Astro.params;
     // Anteprima del contenuto
     previewBtn.addEventListener("click", () => {
       // Verifica che l'editor sia inizializzato
-      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+      if (!window.tinymce || !window.tinymce.get("post-editor")) {
         alert("Editor non inizializzato correttamente. Ricarica la pagina.");
         return;
       }
 
-      const content = window.tinymce.get("wysiwyg-editor").getContent();
+      const content = window.tinymce.get("post-editor").getContent();
       const title = titleInput.value || "Anteprima";
 
       // Salva i dati di anteprima nel localStorage
@@ -213,12 +251,18 @@ const { slug } = Astro.params;
     font-weight: bold;
   }
 
-  .form-group input {
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 16px;
+  }
+
+  .form-group textarea {
+    resize: vertical;
   }
 
   .form-actions {

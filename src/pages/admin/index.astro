@@ -1,42 +1,73 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import WysiwygEditor from "../../components/WysiwygEditor.astro";
+// import AuthGuard from "../../components/AuthGuard.astro";
 ---
 
 <BaseLayout title="Admin - WYSIWYG Editor">
+  <!-- <AuthGuard> Future implementation -->
   <div class="admin-container">
     <h1>Editor WYSIWYG</h1>
     <p>Utilizza l'editor qui sotto per creare o modificare contenuti</p>
 
+    <div class="admin-header">
+      <a href="/admin/posts" class="button secondary">Gestisci post esistenti</a
+      >
+    </div>
+
     <div class="editor-form">
       <div class="form-group">
-        <label for="title">Titolo</label>
+        <label for="title">Titolo <span class="required">*</span></label>
         <input
           type="text"
           id="title"
           name="title"
           placeholder="Inserisci un titolo..."
+          required
         />
       </div>
 
       <div class="form-group">
-        <label for="slug">Slug</label>
+        <label for="slug">Slug <span class="required">*</span></label>
         <input
           type="text"
           id="slug"
           name="slug"
           placeholder="inserisci-uno-slug..."
+          required
         />
       </div>
 
-      <WysiwygEditor />
+      <div class="form-group">
+        <label for="category">Categoria</label>
+        <select id="category" name="category">
+          <option value="">Seleziona categoria</option>
+          <option value="Psicologia">Psicologia</option>
+          <option value="Terapia">Terapia</option>
+          <option value="Benessere">Benessere</option>
+          <option value="Mindfulness">Mindfulness</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Descrizione</label>
+        <textarea
+          id="description"
+          name="description"
+          placeholder="Inserisci una breve descrizione..."
+          rows="3"></textarea>
+      </div>
+
+      <WysiwygEditor id="wysiwyg-editor" />
 
       <div class="form-actions">
         <button id="saveBtn" type="button">Salva</button>
         <button id="previewBtn" type="button">Anteprima</button>
+        <button id="resetBtn" type="button" class="reset-btn">Reset</button>
       </div>
     </div>
   </div>
+  <!-- </AuthGuard> -->
 </BaseLayout>
 
 <script>
@@ -52,6 +83,8 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
     title: string;
     slug: string;
     content: string;
+    category?: string;
+    description?: string;
     date: string;
     updatedAt?: string;
   }
@@ -60,13 +93,20 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
     // Use HTMLInputElement type for proper typing
     const titleInput = document.getElementById("title") as HTMLInputElement;
     const slugInput = document.getElementById("slug") as HTMLInputElement;
+    const categorySelect = document.getElementById(
+      "category"
+    ) as HTMLSelectElement;
+    const descriptionTextarea = document.getElementById(
+      "description"
+    ) as HTMLTextAreaElement;
     const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
     const previewBtn = document.getElementById(
       "previewBtn"
     ) as HTMLButtonElement;
+    const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
 
     // Check that we have all necessary elements
-    if (!titleInput || !slugInput || !saveBtn || !previewBtn) {
+    if (!titleInput || !slugInput || !saveBtn || !previewBtn || !resetBtn) {
       console.error("Required DOM elements not found");
       return;
     }
@@ -84,8 +124,10 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
 
     // Salva il contenuto nel localStorage
     saveBtn.addEventListener("click", () => {
-      const title = titleInput.value;
-      const slug = slugInput.value;
+      const title = titleInput.value.trim();
+      const slug = slugInput.value.trim();
+      const category = categorySelect ? categorySelect.value : "";
+      const description = descriptionTextarea ? descriptionTextarea.value : "";
 
       if (!title || !slug) {
         alert("Per favore, compila tutti i campi obbligatori");
@@ -101,11 +143,18 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
       // Recupera il contenuto dell'editor
       const content = window.tinymce.get("wysiwyg-editor").getContent();
 
+      if (!content || content.trim() === "") {
+        alert("Il contenuto del post non può essere vuoto");
+        return;
+      }
+
       // Salva tutto nel localStorage (temporaneo, poi useremo Git Gateway)
       const post: BlogPost = {
         title,
         slug,
         content,
+        category,
+        description,
         date: new Date().toISOString(),
       };
 
@@ -118,6 +167,13 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
       const existingIndex = posts.findIndex((p: BlogPost) => p.slug === slug);
 
       if (existingIndex >= 0) {
+        if (
+          !confirm(
+            `Esiste già un post con lo slug "${slug}". Vuoi sovrascriverlo?`
+          )
+        ) {
+          return;
+        }
         // Update existing post
         posts[existingIndex] = post;
       } else {
@@ -157,6 +213,17 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
       window.open("/preview", "_blank");
     });
 
+    // Reset dell'editor
+    resetBtn.addEventListener("click", () => {
+      if (
+        confirm(
+          "Sei sicuro di voler resettare il form? Tutti i dati non salvati andranno persi."
+        )
+      ) {
+        resetEditor();
+      }
+    });
+
     /**
      * Funzione per pulire l'editor e resettare il form
      * Resetta tutti i campi e l'istanza TinyMCE
@@ -165,6 +232,14 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
       // Pulisci i campi del form
       titleInput.value = "";
       slugInput.value = "";
+
+      if (categorySelect) {
+        categorySelect.value = "";
+      }
+
+      if (descriptionTextarea) {
+        descriptionTextarea.value = "";
+      }
 
       // Resetta il contenuto dell'editor TinyMCE
       if (window.tinymce && window.tinymce.get("wysiwyg-editor")) {
@@ -196,6 +271,25 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
     padding: 20px;
   }
 
+  .admin-header {
+    margin: 20px 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .button {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    color: white;
+  }
+
+  .button.secondary {
+    background-color: #2196f3;
+  }
+
   .editor-form {
     background-color: #f5f5f5;
     border-radius: 8px;
@@ -213,12 +307,22 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
     font-weight: bold;
   }
 
-  .form-group input {
+  .required {
+    color: #ff3860;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 16px;
+  }
+
+  .form-group textarea {
+    resize: vertical;
   }
 
   .form-actions {
@@ -243,5 +347,11 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
   #previewBtn {
     background-color: #2196f3;
     color: white;
+  }
+
+  .reset-btn {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd !important;
   }
 </style>
