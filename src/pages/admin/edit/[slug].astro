@@ -1,8 +1,8 @@
 ---
 export const prerender = false;
 
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import WysiwygEditor from '../../../components/WysiwygEditor.astro';
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import WysiwygEditor from "../../../components/WysiwygEditor.astro";
 
 const { slug } = Astro.params;
 ---
@@ -10,125 +10,172 @@ const { slug } = Astro.params;
 <BaseLayout title="Modifica Post - WYSIWYG Editor">
   <div class="admin-container">
     <h1>Modifica Post</h1>
-    
+
     <div class="admin-header">
       <a href="/admin/posts" class="back-link">← Torna alla lista post</a>
     </div>
-    
+
     <div class="editor-form" data-slug={slug}>
       <div class="form-group">
         <label for="title">Titolo</label>
-        <input type="text" id="title" name="title" placeholder="Inserisci un titolo..." />
+        <input
+          type="text"
+          id="title"
+          name="title"
+          placeholder="Inserisci un titolo..."
+        />
       </div>
-      
+
       <div class="form-group">
         <label for="slug">Slug</label>
-        <input type="text" id="slug" name="slug" placeholder="inserisci-uno-slug..." />
+        <input
+          type="text"
+          id="slug"
+          name="slug"
+          placeholder="inserisci-uno-slug..."
+        />
       </div>
-      
+
       <WysiwygEditor />
-      
+
       <div class="form-actions">
         <button id="saveBtn" type="button">Aggiorna</button>
         <button id="previewBtn" type="button">Anteprima</button>
+        <button id="cancelBtn" type="button" class="cancel-btn">Annulla</button>
       </div>
     </div>
   </div>
 </BaseLayout>
 
 <script define:vars={{ slug }}>
-  document.addEventListener('DOMContentLoaded', () => {
-    const titleInput = document.getElementById('title');
-    const slugInput = document.getElementById('slug');
-    const saveBtn = document.getElementById('saveBtn');
-    const previewBtn = document.getElementById('previewBtn');
-    
+  document.addEventListener("DOMContentLoaded", () => {
+    const titleInput = document.getElementById("title");
+    const slugInput = document.getElementById("slug");
+    const saveBtn = document.getElementById("saveBtn");
+    const previewBtn = document.getElementById("previewBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
+    // Check that we have all necessary elements
+    if (!titleInput || !slugInput || !saveBtn || !previewBtn || !cancelBtn) {
+      console.error("Required DOM elements not found");
+      return;
+    }
+
     // Carica il post esistente
     loadExistingPost();
-    
+
     function loadExistingPost() {
       // Recupera i post dal localStorage
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      
+      const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+
       // Trova il post con lo slug specificato
-      const post = posts.find(p => p.slug === slug);
-      
+      const post = posts.find((p) => p.slug === slug);
+
       if (!post) {
-        alert('Post non trovato!');
-        window.location.href = '/admin/posts';
+        alert("Post non trovato!");
+        window.location.href = "/admin/posts";
         return;
       }
-      
+
       // Popola i campi del form
       titleInput.value = post.title;
       slugInput.value = post.slug;
-      
+
       // Inserisci il contenuto nell'editor quando TinyMCE è pronto
       const checkTinyMCE = setInterval(() => {
-        if (window.tinymce && window.tinymce.get('wysiwyg-editor')) {
-          window.tinymce.get('wysiwyg-editor').setContent(post.content);
+        if (window.tinymce && window.tinymce.get("wysiwyg-editor")) {
+          window.tinymce.get("wysiwyg-editor").setContent(post.content);
           clearInterval(checkTinyMCE);
         }
       }, 100);
     }
-    
+
     // Aggiorna il post esistente
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener("click", () => {
       const title = titleInput.value;
       const newSlug = slugInput.value;
-      
+
       if (!title || !newSlug) {
-        alert('Per favore, compila tutti i campi obbligatori');
+        alert("Per favore, compila tutti i campi obbligatori");
         return;
       }
-      
+
+      // Verifica che l'editor sia inizializzato
+      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+        alert("Editor non inizializzato correttamente. Ricarica la pagina.");
+        return;
+      }
+
       // Recupera il contenuto dell'editor
-      const content = window.tinymce.get('wysiwyg-editor').getContent();
-      
+      const content = window.tinymce.get("wysiwyg-editor").getContent();
+
       // Recupera i post dal localStorage
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      
+      const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+
       // Trova l'indice del post con lo slug originale
-      const postIndex = posts.findIndex(p => p.slug === slug);
-      
+      const postIndex = posts.findIndex((p) => p.slug === slug);
+
       if (postIndex === -1) {
-        alert('Post non trovato!');
+        alert("Post non trovato!");
         return;
       }
-      
+
       // Aggiorna il post
       posts[postIndex] = {
         ...posts[postIndex],
         title,
         slug: newSlug,
         content,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
-      
+
       // Salva i post aggiornati nel localStorage
-      localStorage.setItem('blog-posts', JSON.stringify(posts));
-      
-      alert('Post aggiornato con successo!');
-      
+      localStorage.setItem("blog-posts", JSON.stringify(posts));
+
+      alert("Post aggiornato con successo!");
+
       // Se lo slug è cambiato, reindirizza alla nuova URL di modifica
       if (newSlug !== slug) {
         window.location.href = `/admin/edit/${newSlug}`;
+      } else {
+        // Altrimenti, reindirizza alla lista dei post
+        window.location.href = "/admin/posts";
       }
     });
-    
+
     // Anteprima del contenuto
-    previewBtn.addEventListener('click', () => {
-      const content = window.tinymce.get('wysiwyg-editor').getContent();
-      const title = titleInput.value || 'Anteprima';
-      
+    previewBtn.addEventListener("click", () => {
+      // Verifica che l'editor sia inizializzato
+      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+        alert("Editor non inizializzato correttamente. Ricarica la pagina.");
+        return;
+      }
+
+      const content = window.tinymce.get("wysiwyg-editor").getContent();
+      const title = titleInput.value || "Anteprima";
+
       // Salva i dati di anteprima nel localStorage
-      localStorage.setItem('preview-post', JSON.stringify({
-        title,
-        content
-      }));
-      
+      localStorage.setItem(
+        "preview-post",
+        JSON.stringify({
+          title,
+          content,
+        })
+      );
+
       // Apri una nuova finestra con l'anteprima
-      window.open('/preview', '_blank');
+      window.open("/preview", "_blank");
+    });
+
+    // Gestione del pulsante "Annulla"
+    cancelBtn.addEventListener("click", () => {
+      if (
+        confirm(
+          "Sei sicuro di voler annullare le modifiche? Le modifiche non salvate andranno perse."
+        )
+      ) {
+        window.location.href = "/admin/posts";
+      }
     });
   });
 </script>
@@ -139,33 +186,33 @@ const { slug } = Astro.params;
     margin: 0 auto;
     padding: 20px;
   }
-  
+
   .admin-header {
     margin: 20px 0;
   }
-  
+
   .back-link {
-    color: #2196F3;
+    color: #2196f3;
     text-decoration: none;
   }
-  
+
   .editor-form {
     background-color: #f5f5f5;
     border-radius: 8px;
     padding: 20px;
     margin-top: 20px;
   }
-  
+
   .form-group {
     margin-bottom: 15px;
   }
-  
+
   .form-group label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
   }
-  
+
   .form-group input {
     width: 100%;
     padding: 8px;
@@ -173,13 +220,13 @@ const { slug } = Astro.params;
     border-radius: 4px;
     font-size: 16px;
   }
-  
+
   .form-actions {
     margin-top: 20px;
     display: flex;
     gap: 10px;
   }
-  
+
   .form-actions button {
     padding: 10px 15px;
     border: none;
@@ -187,14 +234,20 @@ const { slug } = Astro.params;
     cursor: pointer;
     font-size: 16px;
   }
-  
+
   #saveBtn {
-    background-color: #4CAF50;
+    background-color: #4caf50;
     color: white;
   }
-  
+
   #previewBtn {
-    background-color: #2196F3;
+    background-color: #2196f3;
     color: white;
+  }
+
+  .cancel-btn {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd !important;
   }
 </style>

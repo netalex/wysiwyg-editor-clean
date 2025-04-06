@@ -1,26 +1,36 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import WysiwygEditor from '../../components/WysiwygEditor.astro';
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import WysiwygEditor from "../../components/WysiwygEditor.astro";
 ---
 
 <BaseLayout title="Admin - WYSIWYG Editor">
   <div class="admin-container">
     <h1>Editor WYSIWYG</h1>
     <p>Utilizza l'editor qui sotto per creare o modificare contenuti</p>
-    
+
     <div class="editor-form">
       <div class="form-group">
         <label for="title">Titolo</label>
-        <input type="text" id="title" name="title" placeholder="Inserisci un titolo..." />
+        <input
+          type="text"
+          id="title"
+          name="title"
+          placeholder="Inserisci un titolo..."
+        />
       </div>
-      
+
       <div class="form-group">
         <label for="slug">Slug</label>
-        <input type="text" id="slug" name="slug" placeholder="inserisci-uno-slug..." />
+        <input
+          type="text"
+          id="slug"
+          name="slug"
+          placeholder="inserisci-uno-slug..."
+        />
       </div>
-      
+
       <WysiwygEditor />
-      
+
       <div class="form-actions">
         <button id="saveBtn" type="button">Salva</button>
         <button id="previewBtn" type="button">Anteprima</button>
@@ -30,50 +40,83 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
 </BaseLayout>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const titleInput = document.getElementById('title');
-    const slugInput = document.getElementById('slug');
-    const saveBtn = document.getElementById('saveBtn');
-    const previewBtn = document.getElementById('previewBtn');
-    
+  // Declare TinyMCE type to avoid TS errors
+  declare global {
+    interface Window {
+      tinymce: any;
+    }
+  }
+
+  // Post interface to improve type safety
+  interface BlogPost {
+    title: string;
+    slug: string;
+    content: string;
+    date: string;
+    updatedAt?: string;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Use HTMLInputElement type for proper typing
+    const titleInput = document.getElementById("title") as HTMLInputElement;
+    const slugInput = document.getElementById("slug") as HTMLInputElement;
+    const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
+    const previewBtn = document.getElementById(
+      "previewBtn"
+    ) as HTMLButtonElement;
+
+    // Check that we have all necessary elements
+    if (!titleInput || !slugInput || !saveBtn || !previewBtn) {
+      console.error("Required DOM elements not found");
+      return;
+    }
+
     // Genera slug automaticamente dal titolo
-    titleInput.addEventListener('input', () => {
+    titleInput.addEventListener("input", () => {
       const title = titleInput.value;
       const slug = title
         .toLowerCase()
-        .replace(/[^\w\s]/gi, '')
-        .replace(/\s+/g, '-');
-      
+        .replace(/[^\w\s]/gi, "")
+        .replace(/\s+/g, "-");
+
       slugInput.value = slug;
     });
-    
+
     // Salva il contenuto nel localStorage
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener("click", () => {
       const title = titleInput.value;
       const slug = slugInput.value;
-      
+
       if (!title || !slug) {
-        alert('Per favore, compila tutti i campi obbligatori');
+        alert("Per favore, compila tutti i campi obbligatori");
         return;
       }
-      
+
+      // Verifica che l'editor sia inizializzato
+      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+        alert("Editor non inizializzato correttamente. Ricarica la pagina.");
+        return;
+      }
+
       // Recupera il contenuto dell'editor
-      const content = window.tinymce.get('wysiwyg-editor').getContent();
-      
+      const content = window.tinymce.get("wysiwyg-editor").getContent();
+
       // Salva tutto nel localStorage (temporaneo, poi useremo Git Gateway)
-      const post = {
+      const post: BlogPost = {
         title,
         slug,
         content,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
       };
-      
+
       // Salva nel localStorage
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      
+      const posts: BlogPost[] = JSON.parse(
+        localStorage.getItem("blog-posts") || "[]"
+      );
+
       // Cerca se esiste già un post con lo stesso slug
-      const existingIndex = posts.findIndex(p => p.slug === slug);
-      
+      const existingIndex = posts.findIndex((p: BlogPost) => p.slug === slug);
+
       if (existingIndex >= 0) {
         // Update existing post
         posts[existingIndex] = post;
@@ -81,26 +124,68 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
         // Add new post
         posts.push(post);
       }
-      
-      localStorage.setItem('blog-posts', JSON.stringify(posts));
-      
-      alert('Post salvato con successo!');
+
+      localStorage.setItem("blog-posts", JSON.stringify(posts));
+
+      alert("Post salvato con successo!");
+
+      // Pulisci l'editor e resetta il form
+      resetEditor();
     });
-    
+
     // Anteprima del contenuto
-    previewBtn.addEventListener('click', () => {
-      const content = window.tinymce.get('wysiwyg-editor').getContent();
-      const title = titleInput.value || 'Anteprima';
-      
+    previewBtn.addEventListener("click", () => {
+      // Verifica che l'editor sia inizializzato
+      if (!window.tinymce || !window.tinymce.get("wysiwyg-editor")) {
+        alert("Editor non inizializzato correttamente. Ricarica la pagina.");
+        return;
+      }
+
+      const content = window.tinymce.get("wysiwyg-editor").getContent();
+      const title = titleInput.value || "Anteprima";
+
       // Salva i dati di anteprima nel localStorage
-      localStorage.setItem('preview-post', JSON.stringify({
-        title,
-        content
-      }));
-      
+      localStorage.setItem(
+        "preview-post",
+        JSON.stringify({
+          title,
+          content,
+        })
+      );
+
       // Apri una nuova finestra con l'anteprima
-      window.open('/preview', '_blank');
+      window.open("/preview", "_blank");
     });
+
+    /**
+     * Funzione per pulire l'editor e resettare il form
+     * Resetta tutti i campi e l'istanza TinyMCE
+     */
+    function resetEditor(): void {
+      // Pulisci i campi del form
+      titleInput.value = "";
+      slugInput.value = "";
+
+      // Resetta il contenuto dell'editor TinyMCE
+      if (window.tinymce && window.tinymce.get("wysiwyg-editor")) {
+        const editor = window.tinymce.get("wysiwyg-editor");
+
+        // Pulisci il contenuto dell'editor
+        editor.setContent("");
+
+        // Rimuovi eventuali selezioni attive
+        editor.selection.select(editor.getBody(), true);
+        editor.selection.collapse(false);
+
+        // Rimuovi dal localStorage eventuali dati temporanei dell'editor
+        localStorage.removeItem("tinymce-content-wysiwyg-editor");
+
+        // Focus sul campo del titolo per una migliore UX
+        setTimeout(() => {
+          titleInput.focus();
+        }, 100);
+      }
+    }
   });
 </script>
 
@@ -110,24 +195,24 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
     margin: 0 auto;
     padding: 20px;
   }
-  
+
   .editor-form {
     background-color: #f5f5f5;
     border-radius: 8px;
     padding: 20px;
     margin-top: 20px;
   }
-  
+
   .form-group {
     margin-bottom: 15px;
   }
-  
+
   .form-group label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
   }
-  
+
   .form-group input {
     width: 100%;
     padding: 8px;
@@ -135,13 +220,13 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
     border-radius: 4px;
     font-size: 16px;
   }
-  
+
   .form-actions {
     margin-top: 20px;
     display: flex;
     gap: 10px;
   }
-  
+
   .form-actions button {
     padding: 10px 15px;
     border: none;
@@ -149,14 +234,14 @@ import WysiwygEditor from '../../components/WysiwygEditor.astro';
     cursor: pointer;
     font-size: 16px;
   }
-  
+
   #saveBtn {
-    background-color: #4CAF50;
+    background-color: #4caf50;
     color: white;
   }
-  
+
   #previewBtn {
-    background-color: #2196F3;
+    background-color: #2196f3;
     color: white;
   }
 </style>

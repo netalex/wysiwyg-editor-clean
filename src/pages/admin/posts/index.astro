@@ -1,16 +1,23 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
+import BaseLayout from "../../../layouts/BaseLayout.astro";
 ---
+
+<script lang="ts" define:vars={{ slug }}></script>
 
 <BaseLayout title="Gestione Post - WYSIWYG Editor">
   <div class="admin-container">
     <h1>Gestione Post</h1>
-    
+
     <div class="admin-header">
       <a href="/admin" class="back-link">← Torna all'editor</a>
-      <button id="newPostBtn" class="new-post-btn">Nuovo Post</button>
+      <div class="admin-actions">
+        <button id="newPostBtn" class="new-post-btn">Nuovo Post</button>
+        <button id="deleteSelectedBtn" class="delete-selected-btn" disabled
+          >Elimina selezionati</button
+        >
+      </div>
     </div>
-    
+
     <div id="postsList" class="posts-list">
       <p>Caricamento post...</p>
     </div>
@@ -18,101 +25,268 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const postsListContainer = document.getElementById('postsList');
-    const newPostBtn = document.getElementById('newPostBtn');
-    
+  document.addEventListener("DOMContentLoaded", () => {
+    // Elementi DOM con controlli null-safety
+    const postsListContainer = document.getElementById("postsList");
+    const newPostBtn = document.getElementById("newPostBtn");
+    const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+
+    // Verifica che gli elementi esistano
+    if (!postsListContainer || !newPostBtn || !deleteSelectedBtn) {
+      console.error("Required DOM elements not found");
+      return;
+    }
+
     // Reindirizza alla pagina di modifica per un nuovo post
-    newPostBtn.addEventListener('click', () => {
-      window.location.href = '/admin';
+    newPostBtn.addEventListener("click", () => {
+      window.location.href = "/admin";
     });
-    
+
+    // Gestione del pulsante "Elimina selezionati"
+    deleteSelectedBtn.addEventListener("click", () => {
+      deleteSelectedPosts();
+    });
+
     // Carica i post dal localStorage
     loadPosts();
-    
+
     function loadPosts() {
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      
-      if (posts.length === 0) {
-        postsListContainer.innerHTML = '<p class="no-posts">Nessun post disponibile. Crea il tuo primo post!</p>';
-        return;
-      }
-      
-      // Ordina i post per data (più recenti prima)
-      posts.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      // Genera HTML per la tabella dei post
-      const tableHTML = `
-        <table class="posts-table">
-          <thead>
-            <tr>
-              <th>Titolo</th>
-              <th>Slug</th>
-              <th>Data</th>
-              <th>Azioni</th>
+      try {
+        // Cast esplicito a array di oggetti
+        const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+
+        if (posts.length === 0) {
+          if (postsListContainer) {
+            if (postsListContainer) {
+              if (postsListContainer) {
+                if (postsListContainer) {
+                  if (postsListContainer) {
+                    if (postsListContainer) {
+                      if (postsListContainer) {
+                        if (postsListContainer) {
+                          postsListContainer.innerHTML =
+                            '<p class="no-posts">Nessun post disponibile. Crea il tuo primo post!</p>';
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return;
+        }
+
+        // Ordina i post per data (più recenti prima)
+        // Usiamo Number() per garantire che il confronto sia numerico
+        posts.sort(
+          (a: { date: string }, b: { date: string }) => Number(new Date(b.date)) - Number(new Date(a.date))
+        );
+
+        // Genera HTML per la tabella dei post
+        let tableHTML = `
+          <table class="posts-table">
+            <thead>
+              <tr>
+                <th class="checkbox-cell" scope="col">
+                  <input type="checkbox" id="select-all-posts" title="Seleziona tutti">
+                </th>
+                <th scope="col">Titolo</th>
+                <th scope="col">Slug</th>
+                <th scope="col">Data</th>
+                <th scope="col">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        posts.forEach((post: { title: string; slug: string; date: string }) => {
+          // Formatta la data in italiano
+          const postDate = new Date(post.date);
+          const date = postDate.toLocaleDateString("it-IT", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+
+          // Escape per evitare XSS
+          const safeTitle = String(post.title)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+          const safeSlug = String(post.slug)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+          tableHTML += `
+            <tr data-slug="${safeSlug}">
+              <td class="checkbox-cell">
+                <input type="checkbox" class="post-select" data-slug="${safeSlug}">
+              </td>
+              <td>${safeTitle}</td>
+              <td>${safeSlug}</td>
+              <td>${date}</td>
+              <td class="actions">
+                <button class="edit-btn" data-slug="${safeSlug}">Modifica</button>
+                <button class="delete-btn" data-slug="${safeSlug}">Elimina</button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            ${posts.map(post => {
-              const date = new Date(post.date).toLocaleDateString('it-IT', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              });
-              
-              return `
-                <tr data-slug="${post.slug}">
-                  <td>${post.title}</td>
-                  <td>${post.slug}</td>
-                  <td>${date}</td>
-                  <td class="actions">
-                    <button class="edit-btn" data-slug="${post.slug}">Modifica</button>
-                    <button class="delete-btn" data-slug="${post.slug}">Elimina</button>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-      
-      postsListContainer.innerHTML = tableHTML;
-      
-      // Aggiungi event listeners per i pulsanti di modifica ed eliminazione
-      document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const slug = btn.getAttribute('data-slug');
-          editPost(slug);
+          `;
         });
-      });
-      
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const slug = btn.getAttribute('data-slug');
-          deletePost(slug);
+
+        tableHTML += `
+            </tbody>
+          </table>
+        `;
+
+        if (postsListContainer) {
+          postsListContainer.innerHTML = tableHTML;
+        }
+
+        // Aggiungi event listeners per i pulsanti di modifica ed eliminazione
+        document.querySelectorAll(".edit-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const slug = btn.getAttribute("data-slug");
+            if (slug) editPost(slug);
+          });
         });
-      });
+
+        document.querySelectorAll(".delete-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const slug = btn.getAttribute("data-slug");
+            if (slug) deletePost(slug);
+          });
+        });
+
+        // Gestione selezione multipla
+        const selectAllCheckbox = document.getElementById(
+          "select-all-posts"
+        ) as HTMLInputElement;
+        const checkboxes = document.querySelectorAll(".post-select");
+
+        // Gestione "Seleziona tutti"
+        if (selectAllCheckbox) {
+          selectAllCheckbox.addEventListener("change", () => {
+            const isChecked = selectAllCheckbox.checked;
+
+            checkboxes.forEach((checkbox) => {
+              // Cast a HTMLInputElement per accedere alla proprietà checked
+              (checkbox as HTMLInputElement).checked = isChecked;
+            });
+
+            // Abilita/disabilita il pulsante "Elimina selezionati"
+            updateDeleteSelectedButton();
+          });
+        }
+
+        // Gestione singole checkbox
+        checkboxes.forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            // Cast a HTMLInputElement per le verifiche
+            // Controlla se tutte le checkbox sono selezionate
+            const allChecked = Array.from(checkboxes).every(
+              (cb) => (cb as HTMLInputElement).checked
+            );
+
+            const anyChecked = Array.from(checkboxes).some(
+              (cb) => (cb as HTMLInputElement).checked
+            );
+
+            // Aggiorna lo stato di "Seleziona tutti"
+            if (selectAllCheckbox) {
+              selectAllCheckbox.checked = allChecked;
+              selectAllCheckbox.indeterminate = anyChecked && !allChecked;
+            }
+
+            // Abilita/disabilita il pulsante "Elimina selezionati"
+            updateDeleteSelectedButton();
+          });
+        });
+      } catch (error) {
+        console.error("Error loading posts:", error);
+        postsListContainer && postsListContainer.innerHTML =
+          '<p class="error-message">Si è verificato un errore nel caricamento dei post.</p>';
+      }
     }
-    
-    function editPost(slug) {
+
+    // Funzione per aggiornare lo stato del pulsante "Elimina selezionati"
+    function updateDeleteSelectedButton() {
+      const checkboxes = document.querySelectorAll(".post-select");
+      const anyChecked = Array.from(checkboxes).some(
+        (cb) => (cb as HTMLInputElement).checked
+      );
+
+      // Cast a HTMLButtonElement per accedere alla proprietà disabled
+      (deleteSelectedBtn as HTMLButtonElement).disabled = !anyChecked;
+    }
+
+    function editPost(slug: string) {
       // Reindirizza alla pagina di modifica con lo slug del post
       window.location.href = `/admin/edit/${slug}`;
     }
-    
-    function deletePost(slug) {
-      if (!confirm('Sei sicuro di voler eliminare questo post? Questa azione non può essere annullata.')) {
+
+    function deletePost(slug: string) {
+      if (
+        !confirm(
+          "Sei sicuro di voler eliminare questo post? Questa azione non può essere annullata."
+        )
+      ) {
         return;
       }
-      
+
       // Recupera i post dal localStorage
-      const posts = JSON.parse(localStorage.getItem('blog-posts') || '[]');
-      
+      const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+
       // Filtra per rimuovere il post con lo slug specificato
-      const updatedPosts = posts.filter(post => post.slug !== slug);
-      
+      const updatedPosts = posts.filter((post: { slug: any; }) => post.slug !== slug);
+
       // Salva i post aggiornati nel localStorage
-      localStorage.setItem('blog-posts', JSON.stringify(updatedPosts));
-      
+      localStorage.setItem("blog-posts", JSON.stringify(updatedPosts));
+
+      // Ricarica la lista dei post
+      loadPosts();
+    }
+
+    function deleteSelectedPosts() {
+      // Cast a HTMLInputElement per accedere alla proprietà checked
+      const selectedCheckboxes = document.querySelectorAll(
+        ".post-select:checked"
+      );
+
+      if (selectedCheckboxes.length === 0) {
+        return;
+      }
+
+      if (
+        !confirm(
+          `Sei sicuro di voler eliminare ${selectedCheckboxes.length} post? Questa azione non può essere annullata.`
+        )
+      ) {
+        return;
+      }
+
+      // Raccogli gli slug dei post selezionati
+      const slugsToDelete = Array.from(selectedCheckboxes)
+        .map((checkbox) => checkbox.getAttribute("data-slug"))
+        .filter(Boolean); // Rimuove eventuali null
+
+      // Recupera i post dal localStorage
+      const posts = JSON.parse(localStorage.getItem("blog-posts") || "[]");
+
+      // Filtra per rimuovere i post selezionati
+      const updatedPosts = posts.filter(
+        (post: { slug: string | null; }) => !slugsToDelete.includes(post.slug)
+      );
+
+      // Salva i post aggiornati nel localStorage
+      localStorage.setItem("blog-posts", JSON.stringify(updatedPosts));
+
       // Ricarica la lista dei post
       loadPosts();
     }
@@ -125,21 +299,26 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     margin: 0 auto;
     padding: 20px;
   }
-  
+
   .admin-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin: 20px 0;
   }
-  
+
+  .admin-actions {
+    display: flex;
+    gap: 10px;
+  }
+
   .back-link {
-    color: #2196F3;
+    color: #2196f3;
     text-decoration: none;
   }
-  
+
   .new-post-btn {
-    background-color: #4CAF50;
+    background-color: #4caf50;
     color: white;
     border: none;
     padding: 10px 15px;
@@ -147,56 +326,86 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
     cursor: pointer;
     font-size: 16px;
   }
-  
+
   .posts-list {
     margin-top: 20px;
   }
-  
+
   .no-posts {
     text-align: center;
     padding: 20px;
     color: #666;
   }
-  
+
   .posts-table {
     width: 100%;
     border-collapse: collapse;
   }
-  
-  .posts-table th, .posts-table td {
+
+  .posts-table th,
+  .posts-table td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid #ddd;
   }
-  
+
   .posts-table th {
     background-color: #f5f5f5;
     font-weight: bold;
   }
-  
+
   .posts-table tr:hover {
     background-color: #f9f9f9;
   }
-  
+
   .actions {
     display: flex;
     gap: 10px;
   }
-  
-  .edit-btn, .delete-btn {
+
+  .edit-btn,
+  .delete-btn {
     padding: 6px 10px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
   }
-  
+
   .edit-btn {
-    background-color: #2196F3;
+    background-color: #2196f3;
     color: white;
   }
-  
+
   .delete-btn {
     background-color: #f44336;
     color: white;
+  }
+
+  .delete-selected-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .delete-selected-btn:disabled {
+    background-color: #ffcdd2;
+    cursor: not-allowed;
+  }
+
+  .checkbox-cell {
+    width: 40px;
+    text-align: center;
+  }
+
+  .error-message {
+    color: red;
+    text-align: center;
+    padding: 10px;
+    border: 1px solid red;
+    margin-top: 10px;
   }
 </style>
