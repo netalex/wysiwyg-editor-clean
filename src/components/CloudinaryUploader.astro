@@ -1,260 +1,340 @@
+
 ---
 interface Props {
-  uploadPreset: string;
-  cloudName: string;
   folder?: string;
   maxFileSize?: number;
   allowedFormats?: string[];
+  onSuccess?: string;
+  onError?: string;
 }
 
 const {
-  uploadPreset,
-  cloudName,
   folder = "blog-images",
   maxFileSize = 10485760, // 10MB
   allowedFormats = ["jpg", "jpeg", "png", "gif", "webp", "svg"],
+  onSuccess = "",
+  onError = ""
 } = Astro.props;
 ---
 
 <div class="cloudinary-uploader">
   <div class="upload-container">
     <label for="file-upload" class="upload-button">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+        <polyline points="21 15 16 10 5 21"></polyline>
+      </svg>
       Seleziona un'immagine
     </label>
     <input type="file" id="file-upload" accept="image/*" class="file-input" />
-    <p class="upload-info">
-      Formati supportati: {allowedFormats.join(", ")}. Dimensione massima: {
-        Math.floor(maxFileSize / 1048576)
-      }MB
-    </p>
   </div>
 
-  <div class="upload-preview" id="upload-preview">
-    <div class="preview-placeholder">Anteprima immagine</div>
+  <div class="image-preview-container" id="image-preview-container">
+    <div class="placeholder-text">Anteprima immagine</div>
   </div>
 
-  <div class="upload-progress" id="upload-progress" style="display: none;">
+  <div id="upload-progress" class="progress-container" style="display:none;">
     <div class="progress-bar">
-      <div class="progress-bar-fill" id="progress-bar-fill"></div>
+      <div id="progress-indicator" class="progress-indicator"></div>
     </div>
-    <p class="progress-text" id="progress-text">0%</p>
+    <div id="progress-text" class="progress-text">0%</div>
   </div>
 
-  <!-- Input nascosto per salvare l'URL dell'immagine caricata -->
+  <div id="upload-error" class="error-message"></div>
+
+  <!-- Input nascosto per l'URL dell'immagine caricata -->
   <input type="hidden" id="uploaded-image-url" />
+  <input type="hidden" id="uploaded-image-public-id" />
 </div>
 
-<script
-  define:vars={{ uploadPreset, cloudName, folder, maxFileSize, allowedFormats }}
+<script define:vars={{ folder, maxFileSize, allowedFormats, onSuccess, onError }}
 >
   document.addEventListener("DOMContentLoaded", () => {
     const fileInput = document.getElementById("file-upload");
-    const previewContainer = document.getElementById("upload-preview");
+    const previewContainer = document.getElementById("image-preview-container");
     const progressContainer = document.getElementById("upload-progress");
-    const progressBarFill = document.getElementById("progress-bar-fill");
+    const progressIndicator = document.getElementById("progress-indicator");
     const progressText = document.getElementById("progress-text");
+    const errorMessage = document.getElementById("upload-error");
     const uploadedImageUrlInput = document.getElementById("uploaded-image-url");
+    const uploadedImagePublicIdInput = document.getElementById(
+      "uploaded-image-public-id"
+    );
 
-    // Verifica che tutti gli elementi necessari esistano
+    // Verifica gli elementi
     if (
       !fileInput ||
       !previewContainer ||
       !progressContainer ||
-      !progressBarFill ||
+      !progressIndicator ||
       !progressText ||
-      !uploadedImageUrlInput
+      !errorMessage ||
+      !uploadedImageUrlInput ||
+      !uploadedImagePublicIdInput
     ) {
-      console.error("Elementi DOM non trovati");
+      console.error("Elementi DOM mancanti");
       return;
     }
 
     // Event listener per la selezione del file
-    fileInput.addEventListener("change", (e) => {
-      // Ottieni il file selezionato
-      if (!e.target || !e.target.files || e.target.files.length === 0) return;
-
-      const file = e.target.files[0];
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
       if (!file) return;
 
-      // Controlla il formato del file
-      const fileNameParts = file.name.split(".");
-      if (fileNameParts.length <= 1) {
-        alert("Il file non ha un'estensione");
-        fileInput.value = ""; // Reset input
-        return;
-      }
-
-      const fileExtension = fileNameParts.pop()?.toLowerCase() || "";
+      // Validazione del formato del file
+      const fileExtension = file.name.split(".").pop()?.toLowerCase() || "";
       if (!allowedFormats.includes(fileExtension)) {
-        alert(
-          `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`
-        );
-        fileInput.value = ""; // Reset input
+        errorMessage.textContent = `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`;
         return;
       }
 
-      // Controlla la dimensione del file
+      // Validazione della dimensione del file
       if (file.size > maxFileSize) {
-        alert(
-          `File troppo grande. Dimensione massima: ${Math.floor(maxFileSize / 1048576)}MB`
-        );
-        fileInput.value = ""; // Reset input
+        errorMessage.textContent = `File troppo grande. Dimensione massima: ${Math.floor(maxFileSize / 1024 / 1024)}MB`;
         return;
       }
+
+      // Reset errore
+      errorMessage.textContent = "";
 
       // Mostra anteprima
-      showPreview(file);
+      showImagePreview(file);
 
-      // Carica l'immagine su Cloudinary
-      uploadToCloudinary(file);
+      // Carica su Cloudinary
+      await uploadToCloudinary(file);
     });
 
-    // Funzione per mostrare l'anteprima
-    function showPreview(file) {
+    // Funzione per mostrare l'anteprima dell'immagine
+    function showImagePreview(file) {
       const reader = new FileReader();
 
       reader.onload = (e) => {
-        if (previewContainer && e.target && e.target.result) {
-          previewContainer.innerHTML = `
-            <img src="${e.target.result}" alt="Preview" class="preview-image" />
+        previewContainer.innerHTML = `
+          <img src="${e.target.result}" alt="Anteprima" class="preview-image" />
           `;
-        }
       };
 
       reader.readAsDataURL(file);
     }
 
-    // Funzione per caricare l'immagine su Cloudinary
-    function uploadToCloudinary(file) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", uploadPreset);
-      formData.append("folder", folder);
-
-      // Mostra la barra di progresso
-      progressContainer.style.display = "block";
-      progressBarFill.style.width = "0%";
-      progressText.textContent = "0%";
-
-      // Crea una richiesta XHR per monitorare il progresso
-      const xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        true
-      );
-
-      // Monitora il progresso
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100);
-          progressBarFill.style.width = `${percentComplete}%`;
-          progressText.textContent = `${percentComplete}%`;
-        }
-      };
-
-      // Gestisci la risposta
-      xhr.onload = function () {
-        if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
-
-          // Salva l'URL dell'immagine
-          if (uploadedImageUrlInput) {
-            uploadedImageUrlInput.value = response.secure_url;
-          }
-
-          // Emetti un evento personalizzato
-          const uploadEvent = new CustomEvent("cloudinaryUploadComplete", {
-            detail: {
-              url: response.secure_url,
-              publicId: response.public_id,
-              format: response.format,
-              width: response.width,
-              height: response.height,
+    // Funzione per ottenere una firma di upload Cloudinary
+    async function getCloudinarySignature() {
+      try {
+        const response = await fetch("/api/cloudinary-signature", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paramsToSign: {
+              folder,
             },
-          });
+          }),
+        });
 
-          document.dispatchEvent(uploadEvent);
-
-          // Nascondi la barra di progresso dopo un ritardo
-          setTimeout(() => {
-            if (progressContainer) {
-              progressContainer.style.display = "none";
-            }
-          }, 1000);
-        } else {
-          alert(
-            "Si è verificato un errore durante il caricamento dell'immagine"
-          );
-          progressContainer.style.display = "none";
+        if (!response.ok) {
+          throw new Error("Errore durante la generazione della firma");
         }
-      };
 
-      // Gestisci gli errori
-      xhr.onerror = function () {
-        alert("Si è verificato un errore durante il caricamento dell'immagine");
+        const data = await response.json();
+        if (!data.signature || !data.apiKey || !data.timestamp || !data.cloudName) {
+          throw new Error("Firma Cloudinary incompleta");
+        }
+
+        return data;
+      } catch (error) {
+        console.error("Errore signature:", error);
+        errorMessage.textContent =
+          error instanceof Error
+            ? error.message
+            : "Errore durante la generazione della firma";
+        throw error;
+      }
+    }
+
+    // Funzione per caricare l'immagine su Cloudinary
+    async function uploadToCloudinary(file) {
+      try {
+        // Mostra il progresso
+        progressContainer.style.display = "block";
+        progressIndicator.style.width = "0%";
+        progressText.textContent = "0%";
+
+        // Ottieni firma per upload sicuro
+        const signatureData = await getCloudinarySignature();
+
+        // Crea FormData per l'upload
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("api_key", signatureData.apiKey);
+        formData.append("timestamp", signatureData.timestamp);
+        formData.append("signature", signatureData.signature);
+        formData.append("folder", folder);
+
+        // Crea una richiesta XMLHttpRequest per tracciare il progresso
+        const xhr = new XMLHttpRequest();
+        xhr.open(
+          "POST",
+          `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
+          true
+        );
+
+        // Gestione progresso
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            progressIndicator.style.width = `${percent}%`;
+            progressText.textContent = `${percent}%`;
+          }
+        };
+
+        // Gestione completamento
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            const result = JSON.parse(xhr.responseText);
+
+            // Aggiorna i campi nascosti
+            if (uploadedImageUrlInput) {
+              uploadedImageUrlInput.value = result.secure_url;
+            }
+
+            if (uploadedImagePublicIdInput) {
+              uploadedImagePublicIdInput.value = result.public_id;
+            }
+
+            // Nascondi progresso
+            progressContainer.style.display = "none";
+
+            // Emetti evento di completamento
+            const event = new CustomEvent("cloudinaryUploadSuccess", {
+              detail: {
+                url: result.secure_url,
+                publicId: result.public_id,
+                width: result.width,
+                height: result.height,
+                format: result.format,
+              },
+            });
+            document.dispatchEvent(event);
+
+            // Esegui callback di successo se specificato
+            if (onSuccess) {
+              try {
+                window.eval(onSuccess);
+              } catch (e) {
+                console.error("Errore durante l'esecuzione di onSuccess", e);
+              }
+            }
+          } else {
+            console.error("Errore upload Cloudinary:", xhr.responseText);
+            errorMessage.textContent =
+              "Errore durante il caricamento dell'immagine";
+            progressContainer.style.display = "none";
+
+            // Esegui callback di errore se specificato
+            if (onError) {
+              try {
+                window.eval(onError);
+              } catch (e) {
+                console.error("Errore durante l'esecuzione di onError", e);
+              }
+            }
+          }
+        };
+
+        // Gestione errori di rete
+        xhr.onerror = function () {
+          errorMessage.textContent = "Errore di rete durante il caricamento";
+          progressContainer.style.display = "none";
+
+          // Esegui callback di errore se specificato
+          if (onError) {
+            try {
+              window.eval(onError);
+            } catch (e) {
+              console.error("Errore durante l'esecuzione di onError", e);
+            }
+          }
+        };
+
+        // Invia la richiesta
+        xhr.send(formData);
+      } catch (error) {
+        console.error("Errore:", error);
+        errorMessage.textContent =
+          error instanceof Error ? error.message : "Errore sconosciuto";
         progressContainer.style.display = "none";
-      };
 
-      // Invia la richiesta
-      xhr.send(formData);
+        // Esegui callback di errore se specificato
+        if (onError) {
+          try {
+            window.eval(onError);
+          } catch (e) {
+            console.error("Errore durante l'esecuzione di onError", e);
+          }
+        }
+      }
     }
   });
 </script>
 
 <style>
   .cloudinary-uploader {
-    margin: 20px 0;
-    max-width: 600px;
+    width: 100%;
+    margin-bottom: 1rem;
   }
 
   .upload-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border: 2px dashed #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+    margin-bottom: 1rem;
   }
 
   .upload-button {
-    background-color: #2196f3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #4a6cf7;
     color: white;
-    padding: 10px 20px;
     border-radius: 4px;
     cursor: pointer;
-    margin-bottom: 15px;
+    font-size: 14px;
+  }
+
+  .upload-button:hover {
+    background-color: #3a5ce5;
   }
 
   .file-input {
-    position: absolute;
-    width: 0;
-    height: 0;
-    opacity: 0;
+    display: none;
   }
 
-  .upload-info {
-    font-size: 0.85rem;
-    color: #666;
-    text-align: center;
-  }
-
-  .upload-preview {
+  .image-preview-container {
     width: 100%;
     height: 200px;
     background-color: #f5f5f5;
-    border-radius: 8px;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    margin-bottom: 20px;
+    margin-bottom: 1rem;
   }
 
-  .preview-placeholder {
+  .placeholder-text {
     color: #999;
-    font-size: 0.9rem;
+    font-size: 14px;
   }
 
   .preview-image {
@@ -263,30 +343,36 @@ const {
     object-fit: contain;
   }
 
-  .upload-progress {
-    margin-bottom: 20px;
+  .progress-container {
+    margin-bottom: 1rem;
   }
 
   .progress-bar {
     width: 100%;
-    height: 10px;
+    height: 8px;
     background-color: #f0f0f0;
-    border-radius: 5px;
-    margin-bottom: 5px;
+    border-radius: 4px;
     overflow: hidden;
   }
 
-  .progress-bar-fill {
+  .progress-indicator {
     height: 100%;
-    background-color: #4caf50;
+    background-color: #4a6cf7;
     width: 0%;
-    transition: width 0.2s ease;
+    transition: width 0.3s ease;
   }
 
   .progress-text {
-    font-size: 0.8rem;
+    font-size: 12px;
     color: #666;
     text-align: center;
-    margin: 0;
+    margin-top: 4px;
+  }
+
+  .error-message {
+    color: #e53935;
+    font-size: 14px;
+    margin-top: 0.5rem;
+    min-height: 20px;
   }
 </style>

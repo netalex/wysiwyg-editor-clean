@@ -1,24 +1,25 @@
 ---
-// src/components/WysiwygEditor.astro
+// Importa i componenti
+// Nota: Assicurati di creare le cartelle e percorsi corretti
+import CloudinaryUploader from "./CloudinaryUploader.astro";
+import MediaGallery from "./MediaGallery.astro";
 
 interface Props {
   id?: string;
   initialContent?: string;
   height?: number;
-  cloudinaryUploadPreset?: string;
-  cloudinaryCloudName?: string;
 }
 
 const {
   id = "wysiwyg-editor",
   initialContent = "",
   height = 500,
-  cloudinaryUploadPreset = "",
-  cloudinaryCloudName = "",
 } = Astro.props;
 
-// Flag per l'integrazione con Cloudinary
-const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
+// Leggi variabili d'ambiente per Cloudinary
+const cloudinaryCloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
+const cloudinaryApiKey = import.meta.env.PUBLIC_CLOUDINARY_API_KEY;
+const hasCloudinaryConfig = cloudinaryCloudName && cloudinaryApiKey;
 ---
 
 <div class="wysiwyg-editor-container">
@@ -26,75 +27,41 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
     >{initialContent}</textarea
   >
 
-  <!-- Dialog per l'upload delle immagini con Cloudinary -->
-  {
-    hasCloudinaryConfig && (
-      <div id="cloudinary-upload-dialog" class="upload-dialog hidden">
-        <div class="upload-dialog-content">
-          <div class="upload-dialog-header">
-            <h3>Carica un'immagine</h3>
-            <button id="close-dialog-btn" class="close-btn">
-              &times;
-            </button>
-          </div>
-          <div class="upload-dialog-body">
-            <div class="upload-container">
-              <label for="file-upload" class="upload-button">
-                Seleziona un'immagine
-              </label>
-              <input
-                type="file"
-                id="file-upload"
-                accept="image/*"
-                class="file-input"
-              />
-              <p class="upload-info">
-                Formati supportati: jpg, jpeg, png, gif, webp, svg. Dimensione
-                massima: 10MB
-              </p>
-            </div>
+  <!-- Dialog per l'upload delle immagini -->
+  <dialog id="cloudinary-dialog" class="cloudinary-dialog">
+    <div class="dialog-header">
+      <h3>Gestione Immagini</h3>
+      <button id="close-cloudinary-dialog" class="close-dialog-btn">×</button>
+    </div>
 
-            <div class="upload-preview" id="upload-preview">
-              <div class="preview-placeholder">Anteprima immagine</div>
-            </div>
+    <div class="dialog-tabs">
+      <button class="tab-btn active" data-tab="upload">Carica nuova</button>
+      <button class="tab-btn" data-tab="gallery">Galleria</button>
+    </div>
 
-            <div
-              class="upload-progress"
-              id="upload-progress"
-              style="display: none;"
-            >
-              <div class="progress-bar">
-                <div class="progress-bar-fill" id="progress-bar-fill" />
-              </div>
-              <p class="progress-text" id="progress-text">
-                0%
-              </p>
-            </div>
-          </div>
-          <div class="upload-dialog-footer">
-            <button id="cancel-upload-btn" class="cancel-btn">
-              Annulla
-            </button>
-            <button id="insert-image-btn" class="insert-btn" disabled>
-              Inserisci immagine
-            </button>
-          </div>
-        </div>
+    <div class="dialog-content">
+      <div id="upload-tab" class="tab-content active">
+        <CloudinaryUploader
+          folder="blog-images"
+          onSuccess="onCloudinaryUploadSuccess(event.detail)"
+        />
       </div>
-    )
-  }
+
+      <div id="gallery-tab" class="tab-content">
+        <MediaGallery
+          folder="blog-images"
+          onSelect="insertImageFromGallery(publicId, url)"
+        />
+      </div>
+    </div>
+
+    <div class="dialog-footer">
+      <button id="cancel-cloudinary-dialog" class="cancel-btn">Annulla</button>
+    </div>
+  </dialog>
 </div>
 
-<script
-  define:vars={{
-    id,
-    initialContent,
-    height,
-    cloudinaryUploadPreset,
-    cloudinaryCloudName,
-    hasCloudinaryConfig,
-  }}
->
+<script define:vars={{ id, initialContent, height, hasCloudinaryConfig }}>
   document.addEventListener("DOMContentLoaded", () => {
     // Carica TinyMCE dal path locale
     const script = document.createElement("script");
@@ -103,7 +70,6 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
     document.head.appendChild(script);
   });
 
-  let uploadedImageUrl = "";
   let editor; // Riferimento all'istanza dell'editor TinyMCE
 
   function initEditor() {
@@ -119,6 +85,7 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
       "searchreplace",
       "fullscreen",
       "media",
+      "image",
     ];
 
     // Array di voci della toolbar base
@@ -127,10 +94,9 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
       "table | code | searchreplace | fullscreen",
     ];
 
-    // Se disponibile la configurazione Cloudinary, aggiungi il plugin personalizzato per le immagini
+    // Aggiungi pulsante Cloudinary se configurato
     if (hasCloudinaryConfig) {
-      plugins.push("image");
-      toolbar[0] += " image";
+      toolbar[0] += " cloudinaryimage";
     }
 
     // Inizializza TinyMCE con il percorso base per i plugin e skin
@@ -144,37 +110,36 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
       height: height,
       promotion: false,
       branding: false,
-      // Imposta il percorso base per i plugin e skin
       base_url: tinymcePath,
-
-      // Impostazioni aggiuntive
       entity_encoding: "raw",
       convert_urls: false,
       relative_urls: false,
       language: "it",
-
-      // La cosa più importante: imposta `suffix` per indicare a TinyMCE di caricare i file .min.js
       suffix: ".min",
-
-      // Abilita l'autosalvataggio
       autosave_ask_before_unload: true,
       autosave_interval: "30s",
 
-      // Sovrascrive il comportamento del plugin image se abbiamo Cloudinary configurato
-      file_picker_callback: hasCloudinaryConfig
-        ? filePickerCallback
-        : undefined,
-
-      // Salvataggio automatico del contenuto in localStorage
+      // Configurazione per l'aggiunta di pulsanti personalizzati
       setup: function (ed) {
         editor = ed;
 
-        // Aggiungi funzionalità di autosave
+        // Aggiungi pulsante Cloudinary alla toolbar
+        if (hasCloudinaryConfig) {
+          editor.ui.registry.addButton("cloudinaryimage", {
+            icon: "image",
+            tooltip: "Inserisci immagine",
+            onAction: function () {
+              openCloudinaryDialog();
+            },
+          });
+        }
+
+        // Salvataggio automatico in localStorage
         editor.on("change", function () {
           localStorage.setItem(`tinymce-content-${id}`, editor.getContent());
         });
 
-        // Carica il contenuto salvato in precedenza se non è fornito initialContent
+        // Carica contenuto salvato se non è fornito initialContent
         editor.on("init", function () {
           if (!initialContent) {
             const savedContent = localStorage.getItem(`tinymce-content-${id}`);
@@ -183,359 +148,206 @@ const hasCloudinaryConfig = cloudinaryUploadPreset && cloudinaryCloudName;
             }
           }
         });
-
-        // Metodo per inserire un'immagine nell'editor
-        editor.insertImage = function (url, alt = "") {
-          editor.insertContent(`<img src="${url}" alt="${alt}" />`);
-        };
       },
     });
   }
 
-  // Funzione per il selettore di file (se Cloudinary è configurato)
-  function filePickerCallback(callback, value, meta) {
-    // Accettiamo solo immagini
-    if (meta.filetype === "image") {
-      showCloudinaryUploadDialog()
-        .then((imageUrl) => {
-          if (imageUrl) {
-            callback(imageUrl, { alt: "" });
-          }
-        })
-        .catch((error) => {
-          console.error("Errore durante l'upload dell'immagine:", error);
-        });
+  // Funzione per aprire il dialog Cloudinary
+  function openCloudinaryDialog() {
+    const dialog = document.getElementById("cloudinary-dialog");
+    if (dialog instanceof HTMLDialogElement) {
+      dialog.showModal();
+      setupDialogEvents();
     }
   }
 
-  // Funzione per mostrare il dialog di upload
-  function showCloudinaryUploadDialog() {
-    return new Promise((resolve, reject) => {
-      if (!hasCloudinaryConfig) {
-        reject(new Error("Configurazione Cloudinary mancante"));
-        return;
-      }
-
-      const dialog = document.getElementById("cloudinary-upload-dialog");
-      const closeBtn = document.getElementById("close-dialog-btn");
-      const cancelBtn = document.getElementById("cancel-upload-btn");
-      const insertBtn = document.getElementById("insert-image-btn");
-      const fileInput = document.getElementById("file-upload");
-      const previewContainer = document.getElementById("upload-preview");
-      const progressContainer = document.getElementById("upload-progress");
-      const progressBarFill = document.getElementById("progress-bar-fill");
-      const progressText = document.getElementById("progress-text");
-
-      // Resetta lo stato del dialog
-      uploadedImageUrl = "";
-      fileInput.value = "";
-      previewContainer.innerHTML =
-        '<div class="preview-placeholder">Anteprima immagine</div>';
-      progressContainer.style.display = "none";
-      insertBtn.disabled = true;
-
-      // Mostra il dialog
-      dialog.classList.remove("hidden");
-
-      // Gestione eventi dialog
-      closeBtn.onclick = () => {
-        dialog.classList.add("hidden");
-        resolve(null);
-      };
-
-      cancelBtn.onclick = () => {
-        dialog.classList.add("hidden");
-        resolve(null);
-      };
-
-      insertBtn.onclick = () => {
-        dialog.classList.add("hidden");
-        resolve(uploadedImageUrl);
-      };
-
-      // Gestione upload file
-      fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-
-        if (!file) return;
-
-        // Controlla il formato del file
-        const allowedFormats = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
-        const fileExtension = file.name.split(".").pop().toLowerCase();
-
-        if (!allowedFormats.includes(fileExtension)) {
-          alert(
-            `Formato file non supportato. Formati consentiti: ${allowedFormats.join(", ")}`
-          );
-          fileInput.value = "";
-          return;
+  // Configura eventi per il dialog
+  function setupDialogEvents() {
+    // Chiusura dialog
+    const closeBtn = document.getElementById("close-cloudinary-dialog");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        const dialog = document.getElementById("cloudinary-dialog");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
         }
+      });
+    }
 
-        // Controlla la dimensione del file (max 10MB)
-        const maxFileSize = 10 * 1024 * 1024;
-        if (file.size > maxFileSize) {
-          alert("File troppo grande. Dimensione massima: 10MB");
-          fileInput.value = "";
-          return;
+    const cancelBtn = document.getElementById("cancel-cloudinary-dialog");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => {
+        const dialog = document.getElementById("cloudinary-dialog");
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.close();
         }
+      });
+    }
 
-        // Mostra anteprima
-        showPreview(file);
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        // Rimuovi classe active da tutti i tab
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((b) => b.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
 
-        // Carica l'immagine su Cloudinary
-        uploadToCloudinary(file);
-      };
-
-      // Funzione per mostrare l'anteprima
-      function showPreview(file) {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-          previewContainer.innerHTML = `
-            <img src="${e.target.result}" alt="Preview" class="preview-image" />
-          `;
-        };
-
-        reader.readAsDataURL(file);
-      }
-
-      // Funzione per caricare l'immagine su Cloudinary
-      function uploadToCloudinary(file) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", cloudinaryUploadPreset);
-        formData.append("folder", "blog-images");
-
-        // Mostra la barra di progresso
-        progressContainer.style.display = "block";
-        progressBarFill.style.width = "0%";
-        progressText.textContent = "0%";
-
-        // Crea una richiesta XHR per monitorare il progresso
-        const xhr = new XMLHttpRequest();
-        xhr.open(
-          "POST",
-          `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
-          true
-        );
-
-        // Monitora il progresso
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
-            progressBarFill.style.width = `${percentComplete}%`;
-            progressText.textContent = `${percentComplete}%`;
-          }
-        };
-
-        // Gestisci la risposta
-        xhr.onload = function () {
-          if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-
-            // Salva l'URL dell'immagine
-            uploadedImageUrl = response.secure_url;
-
-            // Abilita il pulsante di inserimento
-            insertBtn.disabled = false;
-
-            // Nascondi la barra di progresso dopo un ritardo
-            setTimeout(() => {
-              progressContainer.style.display = "none";
-            }, 1000);
-          } else {
-            alert(
-              "Si è verificato un errore durante il caricamento dell'immagine"
-            );
-            progressContainer.style.display = "none";
-          }
-        };
-
-        // Gestisci gli errori
-        xhr.onerror = function () {
-          alert(
-            "Si è verificato un errore durante il caricamento dell'immagine"
-          );
-          progressContainer.style.display = "none";
-        };
-
-        // Invia la richiesta
-        xhr.send(formData);
-      }
+        // Aggiungi classe active al tab corrente
+        btn.classList.add("active");
+        const tabId = btn.getAttribute("data-tab");
+        const tabContent = document.getElementById(`${tabId}-tab`);
+        if (tabContent) {
+          tabContent.classList.add("active");
+        }
+      });
     });
+  }
+
+  // Funzione per gestire upload riuscito da Cloudinary
+  window.onCloudinaryUploadSuccess = function (detail) {
+    if (!editor) return;
+
+    // Inserisci l'immagine nell'editor
+    const { url, width, height } = detail;
+    insertImageInEditor(url, width, height);
+
+    // Chiudi il dialog
+    const dialog = document.getElementById("cloudinary-dialog");
+    if (dialog instanceof HTMLDialogElement) {
+      dialog.close();
+    }
+  };
+
+  // Funzione per inserire immagine da galleria
+  window.insertImageFromGallery = function (publicId, url) {
+    if (!editor) return;
+
+    // Inserisci l'immagine nell'editor
+    insertImageInEditor(url);
+
+    // Chiudi il dialog
+    const dialog = document.getElementById("cloudinary-dialog");
+    if (dialog instanceof HTMLDialogElement) {
+      dialog.close();
+    }
+  };
+
+  // Funzione helper per inserire immagine nell'editor
+  function insertImageInEditor(url, width, height) {
+    if (!editor) return;
+
+    const imgHtml =
+      width && height
+        ? `<img src="${url}" alt="" width="${width}" height="${height}" loading="lazy" />`
+        : `<img src="${url}" alt="" loading="lazy" />`;
+
+    editor.insertContent(imgHtml);
+    editor.focus();
   }
 </script>
 
 <style>
   .wysiwyg-editor-container {
     margin: 20px 0;
-    max-width: 100%;
-  }
-
-  /* Stili per il dialog di upload */
-  .upload-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
   }
 
-  .upload-dialog.hidden {
-    display: none;
-  }
-
-  .upload-dialog-content {
-    background-color: white;
-    border-radius: 8px;
+  /* Dialog styles */
+  .cloudinary-dialog {
     width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    max-width: 800px;
+    height: 80vh;
+    max-height: 700px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
   }
 
-  .upload-dialog-header {
+  .cloudinary-dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .dialog-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
+    padding: 1rem;
     border-bottom: 1px solid #eee;
   }
 
-  .upload-dialog-header h3 {
+  .dialog-header h3 {
     margin: 0;
     font-size: 1.2rem;
   }
 
-  .close-btn {
+  .close-dialog-btn {
     background: none;
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
+    line-height: 1;
+    padding: 0 0.5rem;
     color: #666;
   }
 
-  .upload-dialog-body {
-    padding: 20px;
-  }
-
-  .upload-container {
+  .dialog-tabs {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    border: 2px dashed #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .upload-button {
-    background-color: #2196f3;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-bottom: 15px;
-  }
-
-  .file-input {
-    position: absolute;
-    width: 0;
-    height: 0;
-    opacity: 0;
-  }
-
-  .upload-info {
-    font-size: 0.85rem;
-    color: #666;
-    text-align: center;
-  }
-
-  .upload-preview {
-    width: 100%;
-    height: 200px;
     background-color: #f5f5f5;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
   }
 
-  .preview-placeholder {
-    color: #999;
-    font-size: 0.9rem;
-  }
-
-  .preview-image {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-
-  .upload-progress {
-    margin-bottom: 20px;
-  }
-
-  .progress-bar {
-    width: 100%;
-    height: 10px;
-    background-color: #f0f0f0;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    overflow: hidden;
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background-color: #4caf50;
-    width: 0%;
-    transition: width 0.2s ease;
-  }
-
-  .progress-text {
-    font-size: 0.8rem;
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
     color: #666;
-    text-align: center;
-    margin: 0;
+    border-bottom: 3px solid transparent;
   }
 
-  .upload-dialog-footer {
+  .tab-btn.active {
+    color: #4a6cf7;
+    border-bottom-color: #4a6cf7;
+    background-color: white;
+  }
+
+  .dialog-content {
+    padding: 1rem;
+    height: calc(80vh - 150px);
+    max-height: 550px;
+    overflow-y: auto;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  .dialog-footer {
+    padding: 1rem;
+    border-top: 1px solid #eee;
     display: flex;
     justify-content: flex-end;
-    padding: 15px 20px;
-    border-top: 1px solid #eee;
-    gap: 10px;
-  }
-
-  .cancel-btn,
-  .insert-btn {
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    border: none;
   }
 
   .cancel-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
     background-color: #f5f5f5;
-    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
   }
 
-  .insert-btn {
-    background-color: #4caf50;
-    color: white;
-  }
-
-  .insert-btn:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
+  .cancel-btn:hover {
+    background-color: #eee;
   }
 </style>

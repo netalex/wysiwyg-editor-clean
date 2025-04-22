@@ -1,0 +1,370 @@
+---
+interface Props {
+  folder?: string;
+  maxItems?: number;
+  onSelect?: string;
+}
+
+const { folder = "blog-images", maxItems = 30, onSelect = "" } = Astro.props;
+
+// Inizializza una lista vuota per le risorse (verrà popolata via API lato client)
+const initialResources = [];
+---
+
+<div class="media-gallery">
+  <div class="gallery-header">
+    <h3>Galleria Media</h3>
+    <div class="gallery-actions">
+      <input
+        type="text"
+        id="gallery-search"
+        placeholder="Cerca media..."
+        class="search-input"
+      />
+      <button id="refresh-gallery" class="refresh-button">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"></path>
+        </svg>
+        Aggiorna
+      </button>
+    </div>
+  </div>
+
+  <div id="media-items" class="media-items">
+    <div class="loading-indicator">Caricamento media...</div>
+  </div>
+
+  <div id="media-empty" class="media-empty" style="display: none;">
+    <p>Nessuna immagine trovata. Carica un'immagine prima.</p>
+  </div>
+
+  <div id="media-error" class="media-error" style="display: none;">
+    <p>Si è verificato un errore durante il caricamento della galleria.</p>
+  </div>
+</div>
+
+<script define:vars={{ folder, maxItems, onSelect }}>
+  document.addEventListener("DOMContentLoaded", () => {
+    const mediaItemsContainer = document.getElementById("media-items");
+    const mediaEmptyMessage = document.getElementById("media-empty");
+    const mediaErrorMessage = document.getElementById("media-error");
+    const searchInput = document.getElementById("gallery-search");
+    const refreshButton = document.getElementById("refresh-gallery");
+
+    // Verifica elementi
+    if (
+      !mediaItemsContainer ||
+      !mediaEmptyMessage ||
+      !mediaErrorMessage ||
+      !searchInput ||
+      !refreshButton
+    ) {
+      console.error("Elementi DOM mancanti");
+      return;
+    }
+
+    // Carica i media
+    loadMedia();
+
+    // Listeners
+    refreshButton.addEventListener("click", loadMedia);
+    searchInput.addEventListener("input", filterMedia);
+
+    // Ascolta per nuovi uploads
+    document.addEventListener("cloudinaryUploadSuccess", (e) => {
+      loadMedia();
+    });
+
+    // Funzione per cercare nel media
+    function filterMedia() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const mediaItems = document.querySelectorAll(".media-item");
+
+      mediaItems.forEach((item) => {
+        const name = item.getAttribute("data-name")?.toLowerCase() || "";
+        if (name.includes(searchTerm)) {
+          item.style.display = "block";
+        } else {
+          item.style.display = "none";
+        }
+      });
+    }
+
+    // Funzione per caricare i media da Cloudinary
+    async function loadMedia() {
+      try {
+        // Mostra stato di caricamento
+        if (mediaItemsContainer) {
+          mediaItemsContainer.innerHTML =
+            '<div class="loading-indicator">Caricamento media...</div>';
+        }
+        if (mediaEmptyMessage) {
+          mediaEmptyMessage.style.display = "none";
+        }
+        if (mediaErrorMessage) {
+          mediaErrorMessage.style.display = "none";
+        }
+
+        // Carica risorse da API
+        const response = await fetch(
+          `/api/cloudinary-resources?prefix=${folder}&max=${maxItems}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Errore caricamento risorse");
+        }
+
+        const data = await response.json();
+        const resources = data.resources || [];
+
+        // Gestisci stato vuoto
+        if (resources.length === 0) {
+          if (mediaItemsContainer) {
+            mediaItemsContainer.innerHTML = "";
+          }
+          if (mediaEmptyMessage) {
+            mediaEmptyMessage.style.display = "block";
+          }
+          return;
+        }
+
+        // Renderizza galleria
+        renderGallery(resources);
+      } catch (error) {
+        console.error("Errore caricamento galleria:", error);
+        if (mediaItemsContainer) {
+          mediaItemsContainer.innerHTML = "";
+        }
+        if (mediaErrorMessage) {
+          mediaErrorMessage.style.display = "block";
+        }
+      }
+    }
+
+    // Funzione per renderizzare la galleria
+    function renderGallery(resources) {
+      // Pulisci container
+      if (mediaItemsContainer) {
+        mediaItemsContainer.innerHTML = "";
+      }
+
+      // Crea griglia di immagini
+      const galleryHtml = resources
+        .map((resource) => {
+          const filename = resource.public_id.split("/").pop();
+          const thumbnailUrl = getOptimizedUrl(resource.public_id, {
+            width: 200,
+            height: 200,
+            crop: "fill",
+          });
+
+          return `
+          <div class="media-item" data-id="${resource.public_id}" data-name="${filename}" data-url="${resource.secure_url}">
+            <img src="${thumbnailUrl}" alt="${filename}" loading="lazy" />
+            <div class="media-item-overlay">
+              <span class="media-item-name">${filename}</span>
+              <button class="select-media-btn" data-id="${resource.public_id}" data-url="${resource.secure_url}">
+                Seleziona
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join("");
+
+      // Aggiungi al DOM
+      if (mediaItemsContainer) {
+        mediaItemsContainer.innerHTML = galleryHtml;
+      }
+
+      // Aggiungi listener ai pulsanti di selezione
+      document.querySelectorAll(".select-media-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const publicId = btn.getAttribute("data-id");
+          const url = btn.getAttribute("data-url");
+
+          if (publicId && url) {
+            // Emetti evento di selezione
+            const event = new CustomEvent("mediaSelected", {
+              detail: { publicId, url },
+            });
+            document.dispatchEvent(event);
+
+            // Esegui callback se specificata
+            if (onSelect) {
+              try {
+                const selectFn = new Function("publicId", "url", onSelect);
+                selectFn(publicId, url);
+              } catch (error) {
+                console.error("Errore esecuzione callback:", error);
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // Funzione di utilità per ottimizzare le URL di Cloudinary
+    function getOptimizedUrl(publicId, options = {}) {
+      const { width = 800, height = 600, crop = "fill" } = options;
+      const cloudName = publicId.split("/")[0] || "demo";
+
+      return `https://res.cloudinary.com/${cloudName}/image/upload/c_${crop},w_${width},h_${height}/${publicId}`;
+    }
+  });
+</script>
+
+<style>
+  .media-gallery {
+    width: 100%;
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #fff;
+  }
+
+  .gallery-header {
+    position: sticky;
+    top: 0;
+    padding: 1rem;
+    background-color: #fff;
+    border-bottom: 1px solid #eee;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .gallery-header h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .gallery-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .search-input {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    width: 180px;
+  }
+
+  .refresh-button {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .refresh-button:hover {
+    background-color: #e9e9e9;
+  }
+
+  .media-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .media-item {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background-color: #f5f5f5;
+    border: 1px solid #eee;
+  }
+
+  .media-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+  }
+
+  .media-item:hover img {
+    transform: scale(1.05);
+  }
+
+  .media-item-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 0.5rem;
+  }
+
+  .media-item:hover .media-item-overlay {
+    opacity: 1;
+  }
+
+  .media-item-name {
+    color: white;
+    font-size: 0.75rem;
+    max-width: 100%;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 0.5rem;
+  }
+
+  .select-media-btn {
+    padding: 0.35rem 0.75rem;
+    background-color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .select-media-btn:hover {
+    background-color: #f0f0f0;
+  }
+
+  .loading-indicator,
+  .media-empty,
+  .media-error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  .media-error {
+    color: #e53935;
+  }
+</style>
