@@ -1,0 +1,41 @@
+---
+// src/components/RoleGuard.astro
+// Componente per proteggere le rotte in base al ruolo
+
+interface Props {
+  roles: string[];
+  redirectTo?: string;
+}
+
+const { roles = ['admin'], redirectTo = "/admin" } = Astro.props;
+---
+
+<div>
+  <slot />
+</div>
+
+<script define:vars={{ roles, redirectTo }}>
+  import { auth } from "../lib/supabase";
+
+  /**
+   * Verifica se l'utente ha uno dei ruoli richiesti
+   * Se non ce l'ha, reindirizza alla pagina specificata
+   */
+  const checkRole = async () => {
+    try {
+      const userRole = await auth.getUserRole();
+      
+      // Se l'utente non ha un ruolo o il ruolo non è nell'elenco consentito
+      if (!userRole || !roles.includes(userRole)) {
+        // Reindirizza
+        window.location.href = redirectTo;
+      }
+    } catch (error) {
+      console.error("Errore durante la verifica del ruolo:", error);
+      window.location.href = redirectTo;
+    }
+  };
+
+  // Verifica il ruolo all'avvio
+  document.addEventListener("DOMContentLoaded", checkRole);
+</script>

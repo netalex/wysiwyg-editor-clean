@@ -1,18 +1,21 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import WysiwygEditor from "../../components/WysiwygEditor.astro";
-// import AuthGuard from "../../components/AuthGuard.astro";
+import AuthGuard from "../../components/AuthGuard.astro";
 ---
 
 <BaseLayout title="Admin - WYSIWYG Editor">
-  <!-- <AuthGuard> Future implementation -->
-  <div class="admin-container">
-    <h1>Editor WYSIWYG</h1>
+    <AuthGuard>
+      <div class="admin-container">
+        <h1>Editor WYSIWYG</h1>
     <p>Utilizza l'editor qui sotto per creare o modificare contenuti</p>
 
     <div class="admin-header">
-      <a href="/admin/posts" class="button secondary">Gestisci post esistenti</a
-      >
+        <div class="user-info">
+            <span id="user-email"></span>
+            <button id="logout-btn" class="logout-btn">Logout</button>
+        </div>
+        <a href="/admin/posts" class="button secondary">Gestisci post esistenti</a>
     </div>
 
     <div class="editor-form">
@@ -67,10 +70,12 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
       </div>
     </div>
   </div>
-  <!-- </AuthGuard> -->
+</AuthGuard>
 </BaseLayout>
 
 <script>
+        import { auth } from "../../lib/supabase";
+
   // Declare TinyMCE type to avoid TS errors
   declare global {
     interface Window {
@@ -90,6 +95,38 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+
+
+    const logoutBtn = document.getElementById("logout-btn");
+        const userEmailSpan = document.getElementById("user-email");
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", async () => {
+                try {
+                    await auth.signOut();
+                    window.location.href = "/admin/login";
+                } catch (error) {
+                    console.error("Errore durante il logout:", error);
+                }
+            });
+        }
+
+        // Mostra l'email dell'utente
+        const displayUserInfo = async () => {
+            if (userEmailSpan) {
+                try {
+                    const user = await auth.getCurrentUser();
+                    if (user) {
+                        userEmailSpan.textContent = user.email || "";
+                    }
+                } catch (error) {
+                    console.error("Errore durante il recupero dell'utente:", error);
+                }
+            }
+        };
+
+        displayUserInfo();
+
     // Use HTMLInputElement type for proper typing
     const titleInput = document.getElementById("title") as HTMLInputElement;
     const slugInput = document.getElementById("slug") as HTMLInputElement;
@@ -272,10 +309,36 @@ import WysiwygEditor from "../../components/WysiwygEditor.astro";
   }
 
   .admin-header {
-    margin: 20px 0;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
   }
+
+
+  .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #user-email {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .logout-btn {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background-color: #e0e0e0;
+        }
 
   .button {
     display: inline-block;

@@ -74,6 +74,44 @@ export const auth = {
         }
     },
 
+
+    /**
+     * Ottieni il ruolo dell'utente corrente
+     */
+    async getUserRole() {
+        try {
+            const user = await this.getCurrentUser();
+            if (!user) return null;
+
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (error) throw error;
+            return data?.role || null;
+        } catch (error) {
+            console.error('Errore durante il recupero del ruolo:', error);
+            return null;
+        }
+    },
+
+    /**
+     * Verifica se l'utente ha il ruolo specificato
+     */
+    async hasRole(role: string) {
+        const userRole = await this.getUserRole();
+        return userRole === role;
+    },
+
+    /**
+     * Verifica se l'utente è un amministratore
+     */
+    async isAdmin() {
+        return await this.hasRole('admin');
+    }
+
     /**
      * Imposta un listener per i cambiamenti dello stato di autenticazione
      */

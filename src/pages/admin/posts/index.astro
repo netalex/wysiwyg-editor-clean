@@ -1,10 +1,10 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
-// import AuthGuard from "../../../components/AuthGuard.astro";
+import AuthGuard from "../../../components/AuthGuard.astro";
 ---
 
 <BaseLayout title="Gestione Post - WYSIWYG Editor">
-  <!-- <AuthGuard> Future implementation -->
+  <AuthGuard>
   <div class="admin-container">
     <h1>Gestione Post</h1>
 
@@ -38,7 +38,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
       <p>Caricamento post...</p>
     </div>
   </div>
-  <!-- </AuthGuard> -->
+  </AuthGuard>
 </BaseLayout>
 
 <script>
